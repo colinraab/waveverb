@@ -1,6 +1,7 @@
 #ifndef COLIN_MIX_MATRIX_H
 #define COLIN_MIX_MATRIX_H
 #include <cmath>
+#include <random>
 
 /*
   ==============================================================================
@@ -30,7 +31,8 @@ struct data {
 class Mix_Matrix {
 protected:
     float coeffs[NUM_CHANNELS] = {0};
-    
+    std::random_device rd;
+
 public:
     Mix_Matrix() {
         coeffs[0] = 1;
@@ -71,6 +73,22 @@ public:
         return o;
     }
 
+    data intermix(data f, data m, float blend) {
+        data o;
+        std::mt19937 gen(rd());
+        std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+
+        for(int i=0; i<NUM_CHANNELS; i++) {
+            if(dist(gen) > blend) {
+                o.channels[i] = f.channels[i];
+            }
+            else {
+                o.channels[i] = m.channels[i];
+            }
+        }
+        return o;
+    }
+
     data stereoToMulti(float l, float r) {
         data o;
         o.channels[0] = l;
@@ -89,16 +107,8 @@ public:
             l += input.channels[i] * coeffs[i] - input.channels[i+1] * coeffs[i+1];
             r += input.channels[i+1] * coeffs[i] + input.channels[i] * coeffs[i+1];
         }
-        /*
-        if(isMono) {
-            l *= 2/NUM_CHANNELS;
-            r *= 2/NUM_CHANNELS;
-        }
-        else {
-            l *= std::sqrt(2/NUM_CHANNELS);
-            r *= std::sqrt(2/NUM_CHANNELS);
-        }
-        */
+        //l *= std::sqrt(2.0/NUM_CHANNELS);
+        //r *= std::sqrt(2.0/NUM_CHANNELS);
     }
     
     void cheapEnergyCrossfade(float x, float &toCoeff, float &fromCoeff) {

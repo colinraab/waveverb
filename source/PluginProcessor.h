@@ -2,14 +2,17 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "waveguide_reverb/waveguide_reverb.h"
+#include <foleys_gui_magic/foleys_gui_magic.h>
 
 #if (MSVC)
 #include "ipps.h"
 #endif
 
-class PluginProcessor : public juce::AudioProcessor
+class PluginProcessor : public foleys::MagicProcessor,
+    private juce::AudioProcessorValueTreeState::Listener
 {
 public:
+
     PluginProcessor();
     ~PluginProcessor() override;
 
@@ -19,9 +22,6 @@ public:
     bool isBusesLayoutSupported (const BusesLayout& layouts) const override;
 
     void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
-
-    juce::AudioProcessorEditor* createEditor() override;
-    bool hasEditor() const override;
 
     const juce::String getName() const override;
 
@@ -36,11 +36,28 @@ public:
     const juce::String getProgramName (int index) override;
     void changeProgramName (int index, const juce::String& newName) override;
 
-    void getStateInformation (juce::MemoryBlock& destData) override;
-    void setStateInformation (const void* data, int sizeInBytes) override;
+    void parameterChanged (const juce::String& param, float value) override;
 
 private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginProcessor)
 
+    std::atomic<float>* dryWet = nullptr;
+    std::atomic<float>* blendReverbWaveguide = nullptr;
+    std::atomic<float>* wetGain = nullptr;
+    std::atomic<float>* roomSize = nullptr;
+    std::atomic<float>* rt60 = nullptr;
+    std::atomic<float>* lowPass = nullptr;
+
+    juce::AudioProcessorValueTreeState treeState {*this, nullptr};
+
     Colin::WaveVerb waveVerb;
+
+
+    // audio player for testing, can be deleted upon release
+    juce::AudioFormatManager formatManager;
+    std::unique_ptr<juce::AudioFormatReaderSource> playSource;
+    juce::AudioTransportSource transport;
+    void startStopLoop();
+    bool isPlaying = false;
+    double lastCallTime;
 };

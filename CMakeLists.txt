@@ -25,7 +25,7 @@ set(PROJECT_NAME "WaveguideReverb")
 #   set(PROJECT_NAME "MyPlugin_v${MAJOR_VERSION}")
 # Doing so enables major versions to show up in IDEs and DAWs as separate plugins
 # allowing you to change parameters and behavior without breaking existing user projects
-set(PRODUCT_NAME "Hybrid Waveguide Network Reverb")
+set(PRODUCT_NAME "WaveVerb")
 
 # Change me! Used for the MacOS bundle name and Installers
 set(COMPANY_NAME "Colin's Plugins")
@@ -47,7 +47,8 @@ project(${PROJECT_NAME} VERSION ${CURRENT_VERSION})
 add_subdirectory(JUCE)
 
 # Add any other modules you want modules here, before the juce_add_plugin call
-juce_add_module(modules/waveguide_reverb)
+juce_add_modules(modules/waveguide_reverb
+                modules/foleys_gui_magic)
 
 # This adds the melatonin inspector module
 add_subdirectory (modules/melatonin_inspector)
@@ -56,6 +57,7 @@ add_subdirectory (modules/melatonin_inspector)
 juce_add_plugin("${PROJECT_NAME}"
     # Icons for the standalone app
     ICON_BIG "${CMAKE_CURRENT_SOURCE_DIR}/packaging/icon.png"
+    ICON_SMALL "${CMAKE_CURRENT_SOURCE_DIR}/packaging/icon.png"
 
     # Change me!
     COMPANY_NAME "${COMPANY_NAME}"
@@ -121,7 +123,12 @@ target_compile_definitions(SharedCode
     VERSION="${CURRENT_VERSION}"
 
     # JucePlugin_Name is for some reason doesn't use the nicer PRODUCT_NAME
-    PRODUCT_NAME_WITHOUT_VERSION="Waveverb"
+    PRODUCT_NAME_WITHOUT_VERSION="WaveVerb"
+
+    FOLEYS_SHOW_GUI_EDITOR_PALLETTE=1
+    FOLEYS_SAVE_EDITED_GUI_IN_PLUGIN_STATE=1
+    JUCE_SILENCE_XCODE_15_LINKER_WARNING=1
+    JUCE_DISABLE_AUDIOPROCESSOR_BEGIN_END_GESTURE_CHECKING=1
 )
 
 # Link to any other modules you added (with juce_add_module) here!
@@ -133,6 +140,7 @@ target_link_libraries(SharedCode
     INTERFACE
     Assets
     melatonin_inspector
+    foleys_gui_magic
     waveguide_reverb
     juce_audio_utils
     juce_audio_processors

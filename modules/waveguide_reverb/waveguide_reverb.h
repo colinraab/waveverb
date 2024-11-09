@@ -8,7 +8,7 @@ name:               Hybrid Waveguide Reverb
 description:        Feedback delay network reverb that mixes between waveguide delay lines
 website:            https://colinraab.com
 license:            MIT
-dependencies:       juce_core
+dependencies:       juce_core, juce_dsp
 minimumCppStandard: 17
 
 END_JUCE_MODULE_DECLARATION
