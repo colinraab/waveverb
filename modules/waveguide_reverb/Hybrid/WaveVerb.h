@@ -19,7 +19,6 @@
 
 namespace Colin
 {
-
     enum ModelType {
         None = 0,
         String,
@@ -65,23 +64,6 @@ public:
         matrix.cheapEnergyCrossfade(dryWet, outCoeff, inCoeff);
     }
 
-    void setSize(float newSize, float rt) {
-        rt = rt * 1000.f; // convert from seconds to milliseconds
-        if(newSize != roomSizeMS) {
-            roomSizeMS = newSize;
-            feedback.setTime(roomSizeMS);
-            diffusion.prepareToPlay(roomSizeMS, fs);
-        }
-        if(rt != rt60MS) {
-            rt60MS = rt;
-            float loop = roomSizeMS * 1.5f;
-            float loopPerRT60 = rt60MS / (loop);
-            float dbPerLoop = -60.f/loopPerRT60;
-            decay = powf(10.f,dbPerLoop * 0.05f);
-            feedback.setDecay(decay);
-        }
-    }
-
     void processBuffer(juce::AudioBuffer<float>& buffer) {
         int numChannels = buffer.getNumChannels();
         int numSamples = buffer.getNumSamples();
@@ -108,7 +90,7 @@ public:
                 mout = strings.process(fout);
             }
 
-            data mixed = matrix.intermix(fout, mout, blend);
+            data mixed = matrix.intermix(fout, mout, blendInCoeff, blendOutCoeff);
             float outSampleL = 0;
             float outSampleR = 0;
             matrix.multiToStereo(mixed, outSampleL, outSampleR);
@@ -119,6 +101,23 @@ public:
             float right = (outSampleR * outCoeff) + (sampleR * inCoeff);
             buffer.setSample(0, sample, left);
             buffer.setSample(1, sample, right);
+        }
+    }
+
+    void setSize(float newSize, float rt) {
+        rt = rt * 1000.f; // convert from seconds to milliseconds
+        if(newSize != roomSizeMS) {
+            roomSizeMS = newSize;
+            feedback.setTime(roomSizeMS);
+            diffusion.prepareToPlay(roomSizeMS, fs);
+        }
+        if(rt != rt60MS) {
+            rt60MS = rt;
+            float loop = roomSizeMS * 1.5f;
+            float loopPerRT60 = rt60MS / (loop);
+            float dbPerLoop = -60.f/loopPerRT60;
+            decay = powf(10.f,dbPerLoop * 0.05f);
+            feedback.setDecay(decay);
         }
     }
 
@@ -172,6 +171,7 @@ public:
     void setBlend(float b) {
         b = b / 100.f;
         blend = b;
+        matrix.cheapEnergyCrossfade(blend, blendOutCoeff, blendInCoeff);
     }
 
     float midiToFreq(int midi) {
@@ -188,6 +188,8 @@ private:
     float decay = 0.f;
     float inCoeff = 0.f;
     float outCoeff = 0.f;
+    float blendInCoeff = 0.f;
+    float blendOutCoeff = 0.f;
     int rootNote = 60;
     int chordType = 0;
     int modelType = 0;

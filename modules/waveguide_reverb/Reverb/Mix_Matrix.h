@@ -73,7 +73,13 @@ public:
         return o;
     }
 
-    data intermix(data f, data m, float blend) {
+    data intermix(data f, data m, float fCoeff, float mCoeff) {
+        data o;
+        for(int i=0; i<NUM_CHANNELS; i++) {
+            o.channels[i] = fCoeff * f.channels[i] + mCoeff * m.channels[i];
+        }
+        return o;
+        /*
         data o;
         std::mt19937 gen(rd());
         std::uniform_real_distribution<float> dist(0.0f, 1.0f);
@@ -87,6 +93,7 @@ public:
             }
         }
         return o;
+        */
     }
 
     data stereoToMulti(float l, float r) {
