@@ -70,7 +70,7 @@ private:
     float mod = 0;
     float sample = 0;
     uint32 sampleRate = 44100;
-    bool playing = false;
+    //bool playing = false;
 };
 
 class Sawtooth

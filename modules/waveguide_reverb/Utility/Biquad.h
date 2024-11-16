@@ -24,16 +24,16 @@ enum class Biquad_Type {
 class Biquad_Filter {
 protected:
     Biquad_Type type;
-    double a0, a1, a2, b1, b2;
+    double a0, a1, a2, b0, b1, b2;
     float Fc, Q, peakGain;
     double z1, z2;
-    int sampleRate;
+    double sampleRate;
     
 public:
     Biquad_Filter()
     {
         type = Biquad_Type::Peak;
-        a0 = 1.0;
+        a0 = b0 = 1.0;
         a1 = a2 = b1 = b2 = 0.0;
         Fc = 0.50;
         Q = 0.707;
@@ -63,7 +63,7 @@ public:
     }
     void setFc(float Fc)
     {
-        this->Fc = Fc / (float)sampleRate;
+        this->Fc = Fc / static_cast<float>(sampleRate);
         calcBiquad();
     }
     void setPeakGain(float peakGainDB)
@@ -79,10 +79,17 @@ public:
         this->peakGain = peakGainDB;
         setFc(Fc);
     }
+    void setCoefficients(double b0, double b1, double b2, double a1, double a2) {
+        this->b0 = b0;
+        this->b1 = b1;
+        this->b2 = b2;
+        this->a1 = a1;
+        this->a2 = a2;
+    }
     float processAudioSample(float sample) {
-        float out = sample * a0 + z1;
-        z1 = sample * a1 + z2 - b1 * out;
-        z2 = sample * a2 - b2 * out;
+        float out = sample * b0 + z1;
+        z1 = sample * b1 + z2 - a1 * out;
+        z2 = sample * b2 - a2 * out;
         return out;
     }
     void calcBiquad()
@@ -93,96 +100,95 @@ public:
         switch (this->type) {
             case Biquad_Type::LPF:
                 norm = 1 / (1 + K / Q + K * K);
-                a0 = K * K * norm;
-                a1 = 2 * a0;
-                a2 = a0;
-                b1 = 2 * (K * K - 1) * norm;
-                b2 = (1 - K / Q + K * K) * norm;
+                b0 = K * K * norm;
+                b1 = 2 * b0;
+                b2 = b0;
+                a1 = 2 * (K * K - 1) * norm;
+                a2 = (1 - K / Q + K * K) * norm;
                 break;
                 
             case Biquad_Type::HPF:
                 norm = 1 / (1 + K / Q + K * K);
-                a0 = 1 * norm;
-                a1 = -2 * a0;
-                a2 = a0;
-                b1 = 2 * (K * K - 1) * norm;
-                b2 = (1 - K / Q + K * K) * norm;
+                b0 = 1 * norm;
+                b1 = -2 * b0;
+                b2 = b0;
+                a1 = 2 * (K * K - 1) * norm;
+                a2 = (1 - K / Q + K * K) * norm;
                 break;
                 
             case Biquad_Type::BPF:
                 norm = 1 / (1 + K / Q + K * K);
-                a0 = K / Q * norm;
-                a1 = 0;
-                a2 = -a0;
-                b1 = 2 * (K * K - 1) * norm;
-                b2 = (1 - K / Q + K * K) * norm;
+                b0 = K / Q * norm;
+                b1 = 0;
+                b2 = -b0;
+                a1 = 2 * (K * K - 1) * norm;
+                a2 = (1 - K / Q + K * K) * norm;
                 break;
                 
             case Biquad_Type::Notch:
                 norm = 1 / (1 + K / Q + K * K);
-                a0 = (1 + K * K) * norm;
-                a1 = 2 * (K * K - 1) * norm;
-                a2 = a0;
-                b1 = a1;
-                b2 = (1 - K / Q + K * K) * norm;
+                b0 = (1 + K * K) * norm;
+                b1 = 2 * (K * K - 1) * norm;
+                b2 = b0;
+                a1 = b1;
+                a2 = (1 - K / Q + K * K) * norm;
                 break;
                 
             case Biquad_Type::Peak:
                 if (peakGain >= 0) {    // boost
                     norm = 1 / (1 + 1/Q * K + K * K);
-                    a0 = (1 + V/Q * K + K * K) * norm;
-                    a1 = 2 * (K * K - 1) * norm;
-                    a2 = (1 - V/Q * K + K * K) * norm;
-                    b1 = a1;
-                    b2 = (1 - 1/Q * K + K * K) * norm;
+                    b0 = (1 + V/Q * K + K * K) * norm;
+                    b1 = 2 * (K * K - 1) * norm;
+                    b2 = (1 - V/Q * K + K * K) * norm;
+                    a1 = b1;
+                    a2 = (1 - 1/Q * K + K * K) * norm;
                 }
                 else {    // cut
                     norm = 1 / (1 + V/Q * K + K * K);
-                    a0 = (1 + 1/Q * K + K * K) * norm;
-                    a1 = 2 * (K * K - 1) * norm;
-                    a2 = (1 - 1/Q * K + K * K) * norm;
-                    b1 = a1;
-                    b2 = (1 - V/Q * K + K * K) * norm;
+                    b0 = (1 + 1/Q * K + K * K) * norm;
+                    b1 = 2 * (K * K - 1) * norm;
+                    b2 = (1 - 1/Q * K + K * K) * norm;
+                    a1 = b1;
+                    a2 = (1 - V/Q * K + K * K) * norm;
                 }
                 break;
             case Biquad_Type::LowShelf:
                 if (peakGain >= 0) {    // boost
                     norm = 1 / (1 + sqrt(2) * K + K * K);
-                    a0 = (1 + sqrt(2*V) * K + V * K * K) * norm;
-                    a1 = 2 * (V * K * K - 1) * norm;
-                    a2 = (1 - sqrt(2*V) * K + V * K * K) * norm;
-                    b1 = 2 * (K * K - 1) * norm;
-                    b2 = (1 - sqrt(2) * K + K * K) * norm;
+                    b0 = (1 + sqrt(2*V) * K + V * K * K) * norm;
+                    b1 = 2 * (V * K * K - 1) * norm;
+                    b2 = (1 - sqrt(2*V) * K + V * K * K) * norm;
+                    a1 = 2 * (K * K - 1) * norm;
+                    a2 = (1 - sqrt(2) * K + K * K) * norm;
                 }
                 else {    // cut
                     norm = 1 / (1 + sqrt(2*V) * K + V * K * K);
-                    a0 = (1 + sqrt(2) * K + K * K) * norm;
-                    a1 = 2 * (K * K - 1) * norm;
-                    a2 = (1 - sqrt(2) * K + K * K) * norm;
-                    b1 = 2 * (V * K * K - 1) * norm;
-                    b2 = (1 - sqrt(2*V) * K + V * K * K) * norm;
+                    b0 = (1 + sqrt(2) * K + K * K) * norm;
+                    b1 = 2 * (K * K - 1) * norm;
+                    b2 = (1 - sqrt(2) * K + K * K) * norm;
+                    a1 = 2 * (V * K * K - 1) * norm;
+                    a2 = (1 - sqrt(2*V) * K + V * K * K) * norm;
                 }
                 break;
             case Biquad_Type::HighShelf:
                 if (peakGain >= 0) {    // boost
                     norm = 1 / (1 + sqrt(2) * K + K * K);
-                    a0 = (V + sqrt(2*V) * K + K * K) * norm;
-                    a1 = 2 * (K * K - V) * norm;
-                    a2 = (V - sqrt(2*V) * K + K * K) * norm;
-                    b1 = 2 * (K * K - 1) * norm;
-                    b2 = (1 - sqrt(2) * K + K * K) * norm;
+                    b0 = (V + sqrt(2*V) * K + K * K) * norm;
+                    b1 = 2 * (K * K - V) * norm;
+                    b2 = (V - sqrt(2*V) * K + K * K) * norm;
+                    a1 = 2 * (K * K - 1) * norm;
+                    a2 = (1 - sqrt(2) * K + K * K) * norm;
                 }
                 else {    // cut
                     norm = 1 / (V + sqrt(2*V) * K + K * K);
-                    a0 = (1 + sqrt(2) * K + K * K) * norm;
-                    a1 = 2 * (K * K - 1) * norm;
-                    a2 = (1 - sqrt(2) * K + K * K) * norm;
-                    b1 = 2 * (K * K - V) * norm;
-                    b2 = (V - sqrt(2*V) * K + K * K) * norm;
+                    b0 = (1 + sqrt(2) * K + K * K) * norm;
+                    b1 = 2 * (K * K - 1) * norm;
+                    b2 = (1 - sqrt(2) * K + K * K) * norm;
+                    a1 = 2 * (K * K - V) * norm;
+                    a2 = (V - sqrt(2*V) * K + K * K) * norm;
                 }
                 break;
         }
-        return;
     }
 };
 

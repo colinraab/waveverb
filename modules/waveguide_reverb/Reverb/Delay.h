@@ -21,28 +21,33 @@
 namespace Colin
 {
 
-class Buffer {
+class Circular_Buffer {
 protected:
     int size;
     int position = 0;
     std::vector<float> buffer;
     
 public:
-    Buffer() = default;
-    Buffer(int size) {
+    Circular_Buffer() = default;
+    Circular_Buffer(int size) {
         this->size = size;
         buffer.resize(size, 0);
     }
     
-    ~Buffer() = default;
+    ~Circular_Buffer() = default;
     
-    void add(float value) {
+    void add(const float value) {
+        jassert(position < size);
         buffer[position] = value;
         position++;
         if (position == size) position = 0;
     }
+
+    void setAt(int pos, float value) {
+        buffer[pos] = value;
+    }
     
-    float get() {
+    float getBack() const {
         //if(position < 0 || position >= size) return 0;
         return buffer[position];
     }
@@ -51,17 +56,17 @@ public:
         return cubicInter(position, fractional);
     }
 
-    float getOffset(int offset, float fractional) {
-        return cubicInter(position + offset, fractional);
+    float getOffset(int offset) {
+        return buffer[validPos(position + offset)];
     }
 
-    float get(float pos) {
-        int roundPos = juce::roundToInt(pos);
-        float fractional = pos - static_cast<float>(roundPos);
+    float getAt(float pos) {
+        const int roundPos = juce::roundToInt(pos);
+        const float fractional = pos - static_cast<float>(roundPos);
         return cubicInter(roundPos, fractional);
     }
     
-    void resize(int newSize) {
+    void resize(const int newSize) {
         buffer.resize(newSize, 0);
         size = newSize;
         if(position >= newSize) {
@@ -71,16 +76,17 @@ public:
     }
     
     void reset() {
-        std::fill(buffer.begin(), buffer.end(), 0);
+        std::fill(buffer.begin(), buffer.end(), 0.f);
+        //position = 0;
     }
     
-    int validPos(int pos) {
+    int validPos(const int pos) const {
         if(pos < 0) return size + pos;
         if(pos >= size) return pos - size;
         return pos;
     }
     
-    float cubicInter(int pos, float fractional) {
+    float cubicInter(const int pos, const float fractional) {
         float a = buffer[validPos(pos-2)];
         float b = buffer[validPos(pos-1)];
         float c = buffer[validPos(pos)];
@@ -92,28 +98,17 @@ public:
         return b + fractional * (k1 + fractional * (k2 + fractional * k3));
     }
 
-    int getLength() {
-        return buffer.size();
-    }
-    
-    /// unused functions
-    float getAt(int pos) {
-        int newpos = position - pos;
-        if(newpos < 0) newpos += size;
-        return buffer[newpos];
-    }
-    
-    float get_last() {
-        return buffer[size-1];
+    int getLength() const {
+        return size;
     }
 };
 
 class Single_Delay {
 protected:
-    Buffer buffer;
+    Circular_Buffer buffer;
     int length = 0;
     float decay = 1.f; /// 1 = no decay, 0 = instant decay
-    int fs = 44100;
+    double sampleRate = 44100;
     float fractional = 0.f;
     
 public:
@@ -129,9 +124,9 @@ public:
     }
     */
     
-    void prepareToPlay(int fs, float time, float decay) {
-        this->fs = fs;
-        length = fs * time;
+    void prepareToPlay(const double fs, const float time, const float decay) {
+        sampleRate = fs;
+        length = juce::roundToInt(static_cast<float>(fs) * time);
         buffer.resize(length);
         buffer.reset();
         this->decay = decay;
@@ -141,145 +136,133 @@ public:
         buffer.reset();
     }
     
-    void delay(float sample) {
+    void delay(const float sample) {
         buffer.add(sample);
     }
     
-    void delayDecay(float sample) {
+    void delayDecay(const float sample) {
         buffer.add(sample * decay);
     }
     
-    float get() {
-        return buffer.get();
+    float get() const {
+        return buffer.getBack();
     }
 
     float getNext() {
         return buffer.getNext(fractional);
     }
-
-    float getOffset(int offset) {
-        return buffer.getOffset(offset, fractional);
-    }
     
-    float getAt(int position) {
+    float getAt(const float position) {
         return buffer.getAt(position);
     }
     
-    void setTime(float newTime) {
-        length = juce::roundToInt(fs * newTime);
+    void setTime(const float newTime) {
+        length = juce::roundToInt(sampleRate * newTime);
         buffer.resize(length);
     }
 
-    void setLength(float l) {
-        int newLength = juce::roundToInt(l);
+    void setLength(const float l) {
+        const int newLength = juce::roundToInt(l);
         if(newLength == length) return;
         length = newLength;
-        fractional = l - newLength;
+        fractional = l - static_cast<float>(newLength);
         buffer.resize(newLength);
         //buffer.reset();
     }
     
-    void setTimeSamples(int bufferSize) {
+    void setTimeSamples(const int bufferSize) {
         buffer.resize(bufferSize);
     }
     
-    void setDecay(float decay) {
+    void setDecay(const float decay) {
         this->decay = decay;
     }
 };
 
 class Multi_Delay {
 protected:
-    int fs = 44100;
+    double sampleRate = 44100;
     float decay = 0.85; /// 1 = no decay, 0 = instant decay
     float time = 150; /// in ms
     Mix_Matrix matrix;
     std::vector<Single_Delay*> delays;
     int delaySamples[NUM_CHANNELS] = {0};
     LFO lfos[NUM_CHANNELS];
-    float depth = 10;
+    float depth = 10.f;
     
 public:
     Multi_Delay() = default;
     ~Multi_Delay() = default;
-    /*
-    Multi_Delay(int numDelays, int fs) {
-        delays.resize(NUM_CHANNELS);
-        for(int i=0; i<NUM_CHANNELS; i++) {
-            delays[i].prepareToPlay(fs, 0, 1);
-        }
-    }
-    */
-    
-    void prepareToPlay(int fs, float time, float decay) {
-        //delays.resize(NUM_CHANNELS);
-        float delaySec = time * 0.001;
-        for(int i=0; i<NUM_CHANNELS; i++) {
+
+    void prepareToPlay(const double fs, const float t, const float d) {
+        sampleRate = fs;
+        const float delaySec = t * 0.001f;
+        for(size_t i=0; i<NUM_CHANNELS; i++) {
             delays.push_back(new Single_Delay());
-            float r = i * 1.0 / NUM_CHANNELS;
+            const float r = i * 1.f / NUM_CHANNELS;
             //delaySamples[i] = std::pow(2,r) * delaySec;
-            float d = std::pow(2,r) * delaySec;
-            delays[i]->prepareToPlay(fs, d, decay);
-            lfos[i].prepareToPlay(fs);
+            const float dt = std::powf(2.f,r) * delaySec;
+            delays[i]->prepareToPlay(sampleRate, dt, d);
+            lfos[i].prepareToPlay(sampleRate);
             lfos[i].setType(LFO_type::Sine);
-            float rate = std::pow(2,r) / 2;
+            const float rate = std::powf(2.f,r) / 2.f;
             lfos[i].setRate(rate);
         }
-        this->time = time;
-        this->decay = decay;
+        time = t;
+        decay = d;
     }
     
-    void setTime(float time) {
-        float delaySec = time * 0.001;
-        for(int i=0; i<NUM_CHANNELS; i++) {
-            float r = i * 1.0 / NUM_CHANNELS;
-            float d = std::pow(2,r) * delaySec;
+    void setTime(const float t) {
+        const float delaySec = t * 0.001f;
+        for(size_t i=0; i<NUM_CHANNELS; i++) {
+            const float r = static_cast<float>(i) * 1.f / NUM_CHANNELS;
+            const float d = std::powf(2.f,r) * delaySec;
             delays[i]->setTime(d);
         }
     }
     
-    void setLFODepth(float depth) {
-        if(depth == this->depth) return;
-        for(int i=0; i<NUM_CHANNELS; i++) {
-            float r = i * 1.0 / NUM_CHANNELS;
-            float d = std::pow(2,r) * depth;
-            lfos[i].setDepth(d);
+    void setLFODepth(const float d) {
+        if(juce::approximatelyEqual(d, depth)) return;
+        depth = d;
+        for(size_t i=0; i<NUM_CHANNELS; i++) {
+            const float r = static_cast<float>(i) * 1.f / NUM_CHANNELS;
+            const float d_ = std::powf(2.f,r) * depth;
+            lfos[i].setDepth(d_);
         }
-        this->depth = depth;
     }
     
-    void setDecay(float decay) {
-        this->decay = decay;
+    void setDecay(const float d) {
+        decay = d;
     }
     
-    void delay(int channel, float sample) {
+    void delay(const size_t channel, const float sample) const {
         delays[channel]->delay(sample);
     }
     
-    float get(int channel) {
+    float get(const size_t channel) const {
         return delays[channel]->get();
     }
     
     data getAll() {
         data d;
-        for(int i=0; i<NUM_CHANNELS; i++) {
+        for(size_t i=0; i<NUM_CHANNELS; i++) {
             d.channels[i] = delays[i]->get();
         }
         return d;
     }
     
     void delayAll(data d) {
-        for(int i=0; i<NUM_CHANNELS; i++) {
+        for(size_t i=0; i<NUM_CHANNELS; i++) {
             delays[i]->delay(d.channels[i]);
         }
     }
     
-    data process(data input) {
-        data output = getAll();
+    data process(const data &input) {
+        const data output = getAll();
         //for(int i=0; i<NUM_CHANNELS; i++) output.channels[i] = delays[i].getAt(delaySamples[i]);
-        data mixed = matrix.Householder(output);
-        for(int i=0; i<NUM_CHANNELS; i++) {
-            float sum = input.channels[i] + (mixed.channels[i] * decay * lfos[i].getValue());
+        const data mixed = matrix.Householder(output);
+        for(size_t i=0; i<NUM_CHANNELS; i++) {
+            const float sum = input.channels[i] + (mixed.channels[i] * decay * lfos[i].getValue());
             delay(i, sum);
         }
         return output;
@@ -300,8 +283,8 @@ public:
     DiffusionStep() = default;
     ~DiffusionStep() = default;
     
-    void configure(int fs) {
-        float delayTime = delayRange * 0.001;
+    void configure(double fs) {
+        float delayTime = static_cast<float>(delayRange) * 0.001f;
         //delays.resize(NUM_CHANNELS);
         for(int i=0; i<NUM_CHANNELS; i++) {
             delays.push_back(new Single_Delay());
@@ -309,7 +292,7 @@ public:
             const float high = delayTime * static_cast<float>(i+1) / NUM_CHANNELS;
             //delaySamples[i] = randomInRange(low, high);
             float d = randomInRange(low, high);
-            if(d<0.001) d = 0.001;
+            if(d<0.001f) d = 0.001f;
             delays[i]->prepareToPlay(fs, d, 1.f);
             flipPolarity[i] = rand() % 2;
         }
@@ -317,21 +300,21 @@ public:
     
     data getAll() {
         data d;
-        for(int i=0; i<NUM_CHANNELS; i++) {
+        for(size_t i=0; i<NUM_CHANNELS; i++) {
             d.channels[i] = delays[i]->get();
         }
         return d;
     }
     
-    void delayAll(data r) {
+    void delayAll(const data &input) const {
         for(int i=0; i<NUM_CHANNELS; i++) {
-            delays[i]->delay(r.channels[i]);
+            delays[i]->delay(input.channels[i]);
         }
     }
     
-    data process(data input) {
+    data process(const data &input) {
         delayAll(input);
-        data output = getAll();
+        const data output = getAll();
         //for(int i=0; i<NUM_CHANNELS; i++) output.channels[i] = delays[i].getAt(delaySamples[i]);
         data mixed = matrix.Hadamard(output);
         for(int i=0; i<NUM_CHANNELS; i++) {
@@ -365,19 +348,19 @@ public:
     Diffuser() = default;
     ~Diffuser() = default;
     
-    void prepareToPlay(float diffusionMS, int fs) {
+    void prepareToPlay(float diffusionMS, double fs) {
         //steps.resize(NUM_STEPS);
-        for(int i=0; i<NUM_STEPS; i++) {
+        for(size_t i=0; i<NUM_STEPS; i++) {
             steps.push_back(new DiffusionStep());
-            steps[i]->delayRange = diffusionMS;
+            steps[i]->delayRange = juce::roundToInt(diffusionMS);
             steps[i]->configure(fs);
             diffusionMS *= 0.5;
         }
     }
     
-    data process(data input) {
+    data process(const data &input) const {
         data o = input;
-        for(int i=0; i<NUM_STEPS; i++) {
+        for(size_t i=0; i<NUM_STEPS; i++) {
             o = steps[i]->process(o);
         }
         return o;

@@ -47,6 +47,11 @@ private:
     std::atomic<float>* roomSize = nullptr;
     std::atomic<float>* rt60 = nullptr;
     std::atomic<float>* lowPass = nullptr;
+    std::atomic<float>* waveguideA = nullptr;
+    std::atomic<float>* waveguideB = nullptr;
+    std::atomic<float>* waveguideC = nullptr;
+    std::atomic<float>* waveguideD = nullptr;
+
 
     juce::AudioProcessorValueTreeState treeState {*this, nullptr};
 

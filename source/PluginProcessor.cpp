@@ -13,7 +13,10 @@ namespace IDs {
     static juce::String modelType {"modelType"};
     static juce::String rootNote {"rootNote"};
     static juce::String chordType {"chordType"};
-
+    static juce::String waveguideA {"waveguideA"};
+    static juce::String waveguideB {"waveguideB"};
+    static juce::String waveguideC {"waveguideC"};
+    static juce::String waveguideD {"waveguideD"};
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
@@ -52,7 +55,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
     auto waveguide = std::make_unique<juce::AudioProcessorParameterGroup>("Waveguide", TRANS ("Waveguide"), "|");
         waveguide->addChild (std::make_unique<juce::AudioParameterChoice>(juce::ParameterID (IDs::modelType, 1), "Model Type", juce::StringArray("None", "String", "Closed Tube", "Open Tube"), 0),
         std::make_unique<juce::AudioParameterChoice>(juce::ParameterID (IDs::rootNote, 1), "Root Note", juce::StringArray("C", "C#", "D", "D#", "E", "F", "G", "G#", "A", "A#", "B"), 0),
-        std::make_unique<juce::AudioParameterChoice>(juce::ParameterID (IDs::chordType, 1), "Chord Type", juce::StringArray("Single Note", "Major", "Minor", "Dominant", "Major 7", "Minor 7"), 0));
+        std::make_unique<juce::AudioParameterChoice>(juce::ParameterID (IDs::chordType, 1), "Chord Type", juce::StringArray("Midi Input", "Single Note", "Major", "Minor", "Dominant", "Major 7", "Minor 7"), 0),
+        std::make_unique<juce::AudioParameterFloat>(juce::ParameterID(IDs::waveguideA, 1), "Waveguide A", juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f), 0.5f),
+        std::make_unique<juce::AudioParameterFloat>(juce::ParameterID(IDs::waveguideB, 1), "Waveguide B", juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f), 0.5f),
+        std::make_unique<juce::AudioParameterFloat>(juce::ParameterID(IDs::waveguideC, 1), "Waveguide C", juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f), 0.5f),
+        std::make_unique<juce::AudioParameterFloat>(juce::ParameterID(IDs::waveguideD, 1), "Waveguide D", juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f), 0.5f));
+
     layout.add (std::move (global), std::move (reverb), std::move (waveguide));
 
     return layout;
@@ -96,6 +104,14 @@ PluginProcessor::PluginProcessor()
     treeState.addParameterListener(IDs::modelType, this);
     treeState.addParameterListener(IDs::rootNote, this);
     treeState.addParameterListener(IDs::chordType, this);
+    waveguideA = treeState.getRawParameterValue (IDs::waveguideA);
+    jassert(waveguideA != nullptr);
+    waveguideB = treeState.getRawParameterValue (IDs::waveguideB);
+    jassert(waveguideB != nullptr);
+    waveguideC = treeState.getRawParameterValue (IDs::waveguideC);
+    jassert(waveguideC != nullptr);
+    waveguideD = treeState.getRawParameterValue (IDs::waveguideD);
+    jassert(waveguideD != nullptr);
 
     magicState.setGuiValueTree(BinaryData::magic_xml, BinaryData::magic_xmlSize);
 
@@ -254,7 +270,10 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     waveVerb.setSize(*roomSize, *rt60);
     waveVerb.setDryWet(*dryWet);
     waveVerb.setOutputGain(*wetGain);
-    waveVerb.setBlend(*blendReverbWaveguide );
+    waveVerb.setBlend(*blendReverbWaveguide);
+    waveVerb.setWaveguideRate(*waveguideA);
+    waveVerb.setWaveguideDecay(*waveguideB);
+    waveVerb.processMidi(midiMessages);
 
     if(*dryWet != 0.f) {
         waveVerb.processBuffer(buffer);

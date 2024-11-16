@@ -42,7 +42,8 @@ namespace Colin
     };
 
     enum ChordType {
-        Single_Note = 0,
+        Midi_Input = 0,
+        Single_Note,
         Major,
         Minor,
         Dominant,
@@ -55,18 +56,19 @@ public:
     WaveVerb() = default;
     ~WaveVerb() = default;
 
-    void prepareToPlay(double sampleRate) {
-        fs = sampleRate;
+    void prepareToPlay(const double fs) {
+        sampleRate = fs;
         diffusion.prepareToPlay(150.f, fs);
         feedback.prepareToPlay(fs, 150.f, 0.85f);
         strings.prepareToPlay(fs);
+        updateFrequencies();
         setSize(roomSizeMS, rt60MS);
         matrix.cheapEnergyCrossfade(dryWet, outCoeff, inCoeff);
     }
 
     void processBuffer(juce::AudioBuffer<float>& buffer) {
-        int numChannels = buffer.getNumChannels();
-        int numSamples = buffer.getNumSamples();
+        const int numChannels = buffer.getNumChannels();
+        const int numSamples = buffer.getNumSamples();
 
         for(int sample = 0; sample < numSamples; sample++) {
             float sampleL = 0.f;
@@ -83,12 +85,14 @@ public:
             }
 
             data input = matrix.stereoToMulti(sampleL, sampleR);
+            data mout;
+            if(modelType == ModelType::String) {
+                mout = strings.process(input);
+            }
+            mout.scale(blendOutCoeff);
+            input = matrix.combine(input, mout);
             data dout = diffusion.process(input);
             data fout = feedback.process(dout);
-            data mout = fout;
-            if(modelType == ModelType::String) {
-                mout = strings.process(fout);
-            }
 
             data mixed = matrix.intermix(fout, mout, blendInCoeff, blendOutCoeff);
             float outSampleL = 0;
@@ -99,31 +103,48 @@ public:
             outSampleR *= outputGain;
             float left = (outSampleL * outCoeff) + (sampleL * inCoeff);
             float right = (outSampleR * outCoeff) + (sampleR * inCoeff);
+            jassert(std::abs(left) <= 1 || std::abs(right) <= 1);
             buffer.setSample(0, sample, left);
             buffer.setSample(1, sample, right);
         }
     }
 
+    void processMidi(juce::MidiBuffer& midiMessages) {
+        for(const auto midiMessage : midiMessages) {
+            auto midiEvent = midiMessage.getMessage();
+            if(midiEvent.isNoteOn()) {
+                midiNotes.push_back(midiEvent.getNoteNumber());
+            }
+            else if(midiEvent.isNoteOff()) {
+                for(std::vector<int>::iterator it = midiNotes.begin(); it != midiNotes.end(); it++) {
+                    if(*it == midiEvent.getNoteNumber()) {
+                        midiNotes.erase(it);
+                    }
+                }
+            }
+        }
+    }
+
     void setSize(float newSize, float rt) {
         rt = rt * 1000.f; // convert from seconds to milliseconds
-        if(newSize != roomSizeMS) {
+        if(!juce::approximatelyEqual(newSize, roomSizeMS)) {
             roomSizeMS = newSize;
             feedback.setTime(roomSizeMS);
-            diffusion.prepareToPlay(roomSizeMS, fs);
+            diffusion.prepareToPlay(roomSizeMS, sampleRate);
         }
-        if(rt != rt60MS) {
+        if(!juce::approximatelyEqual(rt, rt60MS)) {
             rt60MS = rt;
             float loop = roomSizeMS * 1.5f;
             float loopPerRT60 = rt60MS / (loop);
             float dbPerLoop = -60.f/loopPerRT60;
-            decay = powf(10.f,dbPerLoop * 0.05f);
-            feedback.setDecay(decay);
+            reverbDecay = powf(10.f,dbPerLoop * 0.05f);
+            feedback.setDecay(reverbDecay);
         }
     }
 
     void setDryWet(float dw) {
         dw = dw / 100.f; // 0-100 to 0-1
-        if (dryWet == dw) return;
+        if (juce::approximatelyEqual(dw, dryWet)) return;
         dryWet = dw;
         // equal power coefficients for dry/wet mixing
         matrix.cheapEnergyCrossfade(dryWet, outCoeff, inCoeff);
@@ -138,7 +159,7 @@ public:
     }
 
     void setRoot(int root) {
-        root += 60;
+        root += 48;
         if(rootNote == root) return;
         rootNote = root;
         updateFrequencies();
@@ -147,22 +168,31 @@ public:
     void setChord(int chord) {
         if(chordType == chord) return;
         chordType = chord;
-        if(chord == ChordType::Single_Note) {
+        if(chordType == ChordType::Midi_Input) {
+            chordDegrees.clear();
+        }
+        else if(chord == ChordType::Single_Note) {
+            chordDegrees.resize(4);
             chordDegrees = {0, 0, 0, 0};
         }
         else if(chord == ChordType::Major) {
+            chordDegrees.resize(4);
             chordDegrees = {0, 4, 7, 12};
         }
         else if(chord == ChordType::Minor) {
+            chordDegrees.resize(4);
             chordDegrees = {0, 3, 7, 12};
         }
         else if(chord == ChordType::Dominant) {
+            chordDegrees.resize(4);
             chordDegrees = {0, 4, 7, 11};
         }
         else if(chord == ChordType::Major_Seven) {
+            chordDegrees.resize(4);
             chordDegrees = {0, 4, 7, 10};
         }
         else if(chord == ChordType::Minor_Seven) {
+            chordDegrees.resize(4);
             chordDegrees = {0, 3, 7, 10};
         }
         updateFrequencies();
@@ -174,26 +204,41 @@ public:
         matrix.cheapEnergyCrossfade(blend, blendOutCoeff, blendInCoeff);
     }
 
-    float midiToFreq(int midi) {
-        return std::powf(2, (midi - 69) / 12.f) * 440.f;
+    void setWaveguideDecay(float d) {
+        if(juce::approximatelyEqual(d, waveguideDecay)) return;
+        waveguideDecay = d;
+        strings.setDecay(waveguideDecay);
+    }
+
+    void setWaveguideRate(float r) {
+        if(juce::approximatelyEqual(r, waveguideRate)) return;
+        waveguideRate = r;
+        strings.setRate(r);
     }
 
 private:
-    float roomSizeMS = 150.f; /// in ms
-    float rt60MS = 3000.f; /// in ms
-    double fs = 44100;
+    double sampleRate = 44100;
     float dryWet = 1.f; /// wet = 1, dry = 0
     float outputGain = 1.f;
     float blend = 0.5f; /// reverb = 0, strings = 1
-    float decay = 0.f;
     float inCoeff = 0.f;
     float outCoeff = 0.f;
     float blendInCoeff = 0.f;
     float blendOutCoeff = 0.f;
-    int rootNote = 60;
+
+    // reverb parameters
+    float roomSizeMS = 150.f; /// in ms
+    float rt60MS = 3000.f; /// in ms
+    float reverbDecay = 0.f;
+
+    // waveguide parameters
+    int rootNote = 48;
     int chordType = 0;
     int modelType = 0;
     std::vector<int> chordDegrees = {0, 0, 0, 0};
+    std::vector<int> midiNotes;
+    float waveguideDecay = 0.f;
+    float waveguideRate = 0.f;
 
     Diffuser diffusion;
     Multi_Delay feedback;
@@ -201,13 +246,33 @@ private:
     Multi_String strings;
 
     void updateFrequencies() {
-        std::vector<float> frequencies;
-        frequencies.resize(chordDegrees.size());
-        for(int i=0; i < chordDegrees.size(); i++) {
-            float freq = midiToFreq(rootNote + chordDegrees[i]);
-            frequencies.push_back(freq);
+        if(!strings.isInitialised()) return;
+        std::vector<float> frequencies = getFrequencies();
+        if(frequencies.empty()) {
+            strings.resetAfterDecay();
         }
-        strings.setFrequencies(frequencies);
+        else strings.setFrequencies(frequencies);
+    }
+
+    std::vector<float> getFrequencies() {
+        std::vector<float> frequencies;
+        if(!midiNotes.empty()) {
+            for(const int midiNote : midiNotes) {
+                float freq = midiToFreq(midiNote);
+                frequencies.push_back(freq);
+            }
+        }
+        else {
+            for(const int chordDegree : chordDegrees) {
+                float freq = midiToFreq(rootNote + chordDegree);
+                frequencies.push_back(freq);
+            }
+        }
+        return frequencies;
+    }
+
+    static float midiToFreq(const int midi) {
+        return std::powf(2, (static_cast<float>(midi) - 69.f) / 12.f) * 440.f;
     }
 };
 

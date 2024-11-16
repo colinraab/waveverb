@@ -19,11 +19,17 @@ namespace Colin
 static constexpr int NUM_CHANNELS = 16;
 
 struct data {
-    float channels[NUM_CHANNELS] = {0};
+    float channels[NUM_CHANNELS] = {0.f};
     
     void fill(float input) {
-        for(int i=0; i<NUM_CHANNELS; i++) {
+        for(size_t i=0; i<NUM_CHANNELS; i++) {
             channels[i] = input;
+        }
+    }
+
+    void scale(float scalar) {
+        for(size_t i=0; i<NUM_CHANNELS; i++) {
+            channels[i] = channels[i]*scalar;
         }
     }
 };
@@ -37,10 +43,10 @@ public:
     Mix_Matrix() {
         coeffs[0] = 1;
         coeffs[1] = 0;
-        for (int i = 1; i < (NUM_CHANNELS/2); ++i) {
-            double phase = M_PI*i/NUM_CHANNELS;
-            coeffs[2*i] = std::cos(phase);
-            coeffs[2*i + 1] = std::sin(phase);
+        for (size_t i = 1; i < (NUM_CHANNELS/2); ++i) {
+            double phase = M_PI * i / NUM_CHANNELS;
+            coeffs[2*i] = static_cast<float>(std::cos(phase));
+            coeffs[2*i + 1] = static_cast<float>(std::sin(phase));
         }
     }
     ~Mix_Matrix() = default;
@@ -52,7 +58,7 @@ public:
         for(int i=0; i<NUM_CHANNELS; i++)
             sum += r.channels[i];
         sum *= factor;
-        for(int i=0; i<NUM_CHANNELS; i++) {
+        for(size_t i=0; i<NUM_CHANNELS; i++) {
             o.channels[i] = r.channels[i] + sum;
         }
         return o;
@@ -64,7 +70,7 @@ public:
         float b = 0;
         float factor = std::sqrt(1.0/NUM_CHANNELS);
         int hsize = NUM_CHANNELS/2;
-        for(int i=0; i<hsize; i++) {
+        for(size_t i=0; i<hsize; i++) {
             a = r.channels[i];
             b = r.channels[i+hsize];
             o.channels[i] = (a+b) * factor;
@@ -75,7 +81,7 @@ public:
 
     data intermix(data f, data m, float fCoeff, float mCoeff) {
         data o;
-        for(int i=0; i<NUM_CHANNELS; i++) {
+        for(size_t i=0; i<NUM_CHANNELS; i++) {
             o.channels[i] = fCoeff * f.channels[i] + mCoeff * m.channels[i];
         }
         return o;
@@ -100,7 +106,7 @@ public:
         data o;
         o.channels[0] = l;
         o.channels[1] = r;
-        for(int i=2; i<NUM_CHANNELS; i+=2) {
+        for(size_t i=2; i<NUM_CHANNELS; i+=2) {
             o.channels[i] = l * coeffs[i] + r * coeffs[i+1];
             o.channels[i+1] = r * coeffs[i] - l * coeffs[i+1];
         }
@@ -110,21 +116,30 @@ public:
     void multiToStereo(data input, float &l, float &r) {
         l = input.channels[0];
         r = input.channels[1];
-        for(int i=2; i<NUM_CHANNELS; i+=2) {
+        for(size_t i=2; i<NUM_CHANNELS; i+=2) {
             l += input.channels[i] * coeffs[i] - input.channels[i+1] * coeffs[i+1];
             r += input.channels[i+1] * coeffs[i] + input.channels[i] * coeffs[i+1];
         }
         //l *= std::sqrt(2.0/NUM_CHANNELS);
         //r *= std::sqrt(2.0/NUM_CHANNELS);
     }
+
+    data combine(const data &one, const data &two) {
+        data o;
+        for(size_t i=0; i<NUM_CHANNELS; i++) {
+            o.channels[i] = one.channels[i] + two.channels[i];
+        }
+        return o;
+    }
     
     void cheapEnergyCrossfade(float x, float &toCoeff, float &fromCoeff) {
-        float x2 = 1 - x;
-        /// Other powers p can be approximated by: k = -6.0026608 + p*(6.8773512 - 1.5838104*p)
-        float A = x*x2, B = A*(1 + (float)1.4186*A);
-        float C = (B + x), D = (B + x2);
-        toCoeff = C*C;
-        fromCoeff = D*D;
+        float x2 = 1.f - x;
+        float A = x * x2;
+        float B = A * (1.f + 1.4186f * A);
+        float C = (B + x);
+        float D = (B + x2);
+        toCoeff = C * C;
+        fromCoeff = D * D;
     }
 };
 
