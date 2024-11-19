@@ -8,6 +8,8 @@
 #include "ipps.h"
 #endif
 
+class PresetListBox;
+
 class PluginProcessor : public foleys::MagicProcessor,
     private juce::AudioProcessorValueTreeState::Listener
 {
@@ -38,6 +40,9 @@ public:
 
     void parameterChanged (const juce::String& param, float value) override;
 
+    void savePresetInternal();
+    void loadPresetInternal(int index);
+
 private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginProcessor)
 
@@ -52,10 +57,12 @@ private:
     std::atomic<float>* waveguideC = nullptr;
     std::atomic<float>* waveguideD = nullptr;
 
-
     juce::AudioProcessorValueTreeState treeState {*this, nullptr};
+    juce::ValueTree presetNode;
+    PresetListBox* presetList   = nullptr;
 
     Colin::WaveVerb waveVerb;
+    void initialize();
 
 
     // audio player for testing, can be deleted upon release

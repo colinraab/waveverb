@@ -53,8 +53,8 @@ public:
     
     data Householder(data r) {
         data o;
-        float factor = -2 / NUM_CHANNELS;
-        float sum = 0;
+        float factor = -2.f / NUM_CHANNELS;
+        float sum = 0.f;
         for(int i=0; i<NUM_CHANNELS; i++)
             sum += r.channels[i];
         sum *= factor;
@@ -68,7 +68,7 @@ public:
         data o;
         float a = 0;
         float b = 0;
-        float factor = std::sqrt(1.0/NUM_CHANNELS);
+        float factor = std::sqrt(1.f/NUM_CHANNELS);
         int hsize = NUM_CHANNELS/2;
         for(size_t i=0; i<hsize; i++) {
             a = r.channels[i];

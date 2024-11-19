@@ -85,19 +85,20 @@ public:
             }
 
             data input = matrix.stereoToMulti(sampleL, sampleR);
-            data mout;
+            data mout = input;
             if(modelType == ModelType::String) {
                 mout = strings.process(input);
             }
-            mout.scale(blendOutCoeff);
-            input = matrix.combine(input, mout);
+            //mout.scale(blendOutCoeff);
+            //input = matrix.combine(input, mout);
+            input = matrix.intermix(input, mout, blendInCoeff, blendOutCoeff);
             data dout = diffusion.process(input);
             data fout = feedback.process(dout);
 
-            data mixed = matrix.intermix(fout, mout, blendInCoeff, blendOutCoeff);
+            //data mixed = matrix.intermix(fout, mout, blendInCoeff, blendOutCoeff);
             float outSampleL = 0;
             float outSampleR = 0;
-            matrix.multiToStereo(mixed, outSampleL, outSampleR);
+            matrix.multiToStereo(fout, outSampleL, outSampleR);
 
             outSampleL *= outputGain;
             outSampleR *= outputGain;
@@ -214,6 +215,18 @@ public:
         if(juce::approximatelyEqual(r, waveguideRate)) return;
         waveguideRate = r;
         strings.setRate(r);
+    }
+
+    void setWaveguidePickup(float p) {
+        strings.setPickupPosition(p);
+    }
+
+    void setWaveguideTrigger(float t) {
+        strings.setTriggerPosition(t);
+    }
+
+    void reset() {
+
     }
 
 private:

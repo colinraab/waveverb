@@ -76,6 +76,8 @@ void ApplicationSettings::load()
         if (! tree.isValid())
             return;
 
+        settings.removeListener (this);
+        tree.removeListener(this);
         settings.copyPropertiesAndChildrenFrom (tree, nullptr);
         settings.addListener (this);
 

@@ -27,7 +27,9 @@ public:
     void prepareToPlay(const double fs) {
         sampleRate = fs;
         juce::dsp::ProcessSpec spec(fs, 512, 2);
-        filter.prepare(spec);
+        LPF.prepare(spec);
+        APFforward.prepare(spec);
+        APFbackward.prepare(spec);
         bodyFilters.resize(16);
         for(size_t i=0; i<16; i++) {
             bodyFilters[i].setCoefficients(bodyB[0], bodyB[1], bodyB[2], bodyA[i][1], bodyA[i][2]);
@@ -84,8 +86,8 @@ public:
     float getSample() {
         if(!enabled) return 0.f;
 
-        const float forwardOut = forwardLine.getBack();
-        const float backwardOut = backwardLine.getBack();
+        const float forwardOut = APFforward.processSample(forwardLine.getBack());
+        const float backwardOut = APFbackward.processSample(backwardLine.getBack());
 
         if(shouldReset) {
             if(forwardOut < 0.000001f && backwardOut < 0.000001f) {
@@ -96,7 +98,7 @@ public:
         }
 
         forwardLine.add(-1.f * backwardOut);
-        backwardLine.add(static_cast<float>(-1.0 * decayCoeff * filter.processSample(forwardOut)));
+        backwardLine.add(static_cast<float>(-1.0 * decayCoeff * LPF.processSample(forwardOut)));
 
         const float waveguideOut = forwardLine.getOffset(forwardPickupIndex) + backwardLine.getOffset(backwardPickupIndex);
         const float bodyOut = applyBodyFilters(waveguideOut);
@@ -108,7 +110,7 @@ public:
         for(size_t i=0; i<16; i++) {
             output += bodyFilters[i].processAudioSample(sample);
         }
-        output /= 32;
+        output /= 40.f; // scaling to prevent values exceeding -1 to 1
         return output;
     }
 
@@ -132,7 +134,9 @@ public:
 private:
     Circular_Buffer forwardLine;
     Circular_Buffer backwardLine;
-    juce::dsp::IIR::Filter<float> filter;
+    juce::dsp::IIR::Filter<float> LPF;
+    juce::dsp::IIR::Filter<float> APFforward;
+    juce::dsp::IIR::Filter<float> APFbackward;
     double sampleRate = 44100;
     int forwardPickupIndex;
     int backwardPickupIndex;
@@ -176,8 +180,12 @@ private:
         forwardPickupIndex = juce::roundToInt(juce::jmap(pickupPosition, 0.f, static_cast<float>(roundLength) / 2.f - 1));
         backwardPickupIndex = roundLength - 1 - forwardPickupIndex;
         forwardTriggerIndex = juce::roundToInt(juce::jmap(triggerPosition, 0.f, static_cast<float>(roundLength) / 2.f - 1));
-        filter.reset();
-        filter.coefficients = juce::dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(sampleRate, 4 * frequency);
+        LPF.reset();
+        LPF.coefficients = juce::dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(sampleRate, 4 * frequency);
+        APFforward.reset();
+        APFforward.coefficients = juce::dsp::IIR::Coefficients<float>::makeFirstOrderAllPass(sampleRate, frequency);
+        APFbackward.reset();
+        APFbackward.coefficients = juce::dsp::IIR::Coefficients<float>::makeFirstOrderAllPass(sampleRate, frequency);
         decayCoeff = juce::jmap(static_cast<double>(decayTime), std::pow(0.9999, static_cast<double>(roundLength)), std::pow(0.999999, static_cast<double>(roundLength)));
         if(decayCoeff >= 0.9999) decayCoeff = 0.9999;
         reset();
@@ -209,11 +217,12 @@ public:
         data output;
         for(size_t i = 0; i < NUM_CHANNELS; i++) {
             auto sample = strings[i]->getSample();
-            if (std::abs(sample) > 1.f) jassertfalse;
-            output.channels[i] = sample / NUM_CHANNELS;
+            jassert(std::abs(sample) < 1.f);
+            output.channels[i] = sample; // / NUM_CHANNELS
             if(counters[i] >= juce::roundToInt(triggerRate) * lengths[i]) {
                 if(input.channels[i] >= 0.01f) {
-                    strings[i]->trigger(input.channels[i] < 0.8f ? input.channels[i] : 0.8f);
+                    float velocity = juce::jmap(input.channels[i], 0.f, 1.f, 0.f, 0.8f);
+                    strings[i]->trigger(velocity);
                     counters[i] = 0;
                 }
             }
@@ -247,6 +256,18 @@ public:
     void setRate(float r) {
         r = juce::jmap(r, 0.f, 1.f, 500.f, 50.f);
         triggerRate = r;
+    }
+
+    void setTriggerPosition(const float position) const {
+        for(size_t i = 0; i < NUM_CHANNELS; i++) {
+            strings[i]->setTriggerPosition(position);
+        }
+    }
+
+    void setPickupPosition(const float position) const {
+        for(size_t i = 0; i < NUM_CHANNELS; i++) {
+            strings[i]->setPickupPosition(position);
+        }
     }
 
     bool isInitialised() const {

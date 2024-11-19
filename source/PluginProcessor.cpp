@@ -1,5 +1,6 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "PresetListBox.h"
 
 //==============================================================================
 
@@ -53,7 +54,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
         std::make_unique<juce::AudioParameterFloat>(juce::ParameterID (IDs::rt60, 1), "RT 60", juce::NormalisableRange<float>(0.2f, 10.0f, 0.1f), 2.0f));
 
     auto waveguide = std::make_unique<juce::AudioProcessorParameterGroup>("Waveguide", TRANS ("Waveguide"), "|");
-        waveguide->addChild (std::make_unique<juce::AudioParameterChoice>(juce::ParameterID (IDs::modelType, 1), "Model Type", juce::StringArray("None", "String", "Closed Tube", "Open Tube"), 0),
+        waveguide->addChild (std::make_unique<juce::AudioParameterChoice>(juce::ParameterID (IDs::modelType, 1), "Model Type", juce::StringArray("None", "Plucked String"), 0),
         std::make_unique<juce::AudioParameterChoice>(juce::ParameterID (IDs::rootNote, 1), "Root Note", juce::StringArray("C", "C#", "D", "D#", "E", "F", "G", "G#", "A", "A#", "B"), 0),
         std::make_unique<juce::AudioParameterChoice>(juce::ParameterID (IDs::chordType, 1), "Chord Type", juce::StringArray("Midi Input", "Single Note", "Major", "Minor", "Dominant", "Major 7", "Minor 7"), 0),
         std::make_unique<juce::AudioParameterFloat>(juce::ParameterID(IDs::waveguideA, 1), "Waveguide A", juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f), 0.5f),
@@ -82,7 +83,7 @@ PluginProcessor::PluginProcessor()
                        treeState (*this, nullptr, "Parameters", createParameterLayout())
 {
     FOLEYS_SET_SOURCE_PATH(__FILE__);
-
+    magicState.setApplicationSettingsFile (juce::File::getSpecialLocation (juce::File::userDocumentsDirectory).getChildFile ("Colin's Plugins").getChildFile ("WaveguideReverb" + juce::String (".settings")));
 
     // global params
     dryWet = treeState.getRawParameterValue (IDs::dryWet);
@@ -114,6 +115,21 @@ PluginProcessor::PluginProcessor()
     jassert(waveguideD != nullptr);
 
     magicState.setGuiValueTree(BinaryData::magic_xml, BinaryData::magic_xmlSize);
+
+    magicState.addTrigger("init", [&]{initialize();});
+
+    presetList = magicState.createAndAddObject<PresetListBox>("presets");
+    presetList->onSelectionChanged = [&](int number)
+    {
+        loadPresetInternal (number);
+    };
+    magicState.addTrigger ("save-preset", [this]
+    {
+        savePresetInternal();
+    });
+    presetList->setPresetsNode(presetNode);
+    //loadPresetInternal(0);
+
 
     // can delete upon release
     formatManager.registerBasicFormats();
@@ -273,11 +289,64 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     waveVerb.setBlend(*blendReverbWaveguide);
     waveVerb.setWaveguideRate(*waveguideA);
     waveVerb.setWaveguideDecay(*waveguideB);
+    waveVerb.setWaveguideTrigger(*waveguideC);
+    waveVerb.setWaveguidePickup(*waveguideD);
     waveVerb.processMidi(midiMessages);
 
     if(*dryWet != 0.f) {
         waveVerb.processBuffer(buffer);
     }
+}
+
+void PluginProcessor::initialize() {
+
+    waveVerb.reset();
+}
+
+void PluginProcessor::savePresetInternal()
+{
+    auto now = juce::Time::currentTimeMillis();
+    auto elapsed = now - lastCallTime;
+    if (elapsed >= 1000) {
+        lastCallTime = now;
+
+        static juce::Identifier presetsType ("presets");
+        presetNode = magicState.getSettings().getOrCreateChildWithName (presetsType, nullptr);
+
+        static juce::Identifier presetType ("Preset");
+        juce::ValueTree preset { presetType };
+        preset.setProperty ("name", "Preset " + juce::String (presetNode.getNumChildren() + 1), nullptr);
+
+        foleys::ParameterManager manager (*this);
+        manager.saveParameterValues (preset);
+
+        presetNode.appendChild (preset, nullptr);
+    }
+}
+
+void PluginProcessor::loadPresetInternal(int index)
+{
+    /*
+    auto settingsFile = juce::File::getSpecialLocation(juce::File::userDocumentsDirectory).getChildFile ("Colin's Plugins").getChildFile("WaveguideReverb" + juce::String (".settings"));
+    if(!settingsFile.exists()) return;
+    auto xml = juce::parseXML(settingsFile);
+    auto string = xml->toString();
+    auto tree = juce::ValueTree::fromXml(*xml);
+    string = tree.toXmlString();
+    presetNode = tree.getChildWithName ("presets");
+    jassert(presetNode.isValid());
+    auto properties = presetNode.getNumProperties();
+    auto children = presetNode.getNumChildren();
+    string = presetNode.toXmlString();
+    */
+    static juce::Identifier presetsType ("presets");
+    presetNode = magicState.getSettings().getChildWithName (presetsType);
+    auto preset = presetNode.getChild (index);
+    if(!preset.isValid()) { return; }
+    auto string = preset.toXmlString();
+
+    foleys::ParameterManager manager (*this);
+    manager.loadParameterValues (preset);
 }
 
 
