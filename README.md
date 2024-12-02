@@ -1,4 +1,4 @@
-## WaveVerb - Hybrid Waveguide Network Reverb
+## WaveVerb - Hybrid Waveguide Reverb Network
 
 Final project for MUMT618 seminar, McGill University Fall 2024. Description and demonstration are available [here](https://colinraab.github.io/waveverb/)
 
