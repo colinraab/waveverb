@@ -143,7 +143,7 @@ public:
             reverbDecay = powf(10.f,dbPerLoop * 0.05f);
             feedback.setDecay(reverbDecay);
             float cutoff = juce::jmap(rt, 0.f, 10.f, 1000.f, 10000.f);
-
+            feedback.setFilterCutoff(cutoff);
         }
     }
 

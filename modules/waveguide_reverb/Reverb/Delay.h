@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include "Mix_Matrix.h"
 #include "../Utility/LFO.h"
+#include "waveguide_reverb/Utility/Biquad.h"
 
 /*
   ==============================================================================
@@ -110,7 +111,8 @@ protected:
     float decay = 1.f; /// 1 = no decay, 0 = instant decay
     double sampleRate = 44100;
     float fractional = 0.f;
-    
+    Biquad_Filter filter;
+
 public:
     Single_Delay() = default;
     ~Single_Delay() = default;
@@ -130,6 +132,7 @@ public:
         buffer.resize(length);
         buffer.reset();
         this->decay = decay;
+        filter.setBiquad(Biquad_Type::LPF, fs / 2.f, 0.707, 0.f);
     }
     
     void reset() {
@@ -177,6 +180,10 @@ public:
     void setDecay(const float decay) {
         this->decay = decay;
     }
+
+    void setFilterCutoff(float cutoff) {
+        filter.setFc(cutoff);
+    }
 };
 
 class Multi_Delay {
@@ -189,6 +196,7 @@ protected:
     int delaySamples[NUM_CHANNELS] = {0};
     LFO lfos[NUM_CHANNELS];
     float depth = 0.f;
+    float fc = 0.f;
     
 public:
     Multi_Delay() = default;
@@ -234,6 +242,15 @@ public:
     
     void setDecay(const float d) {
         decay = d;
+    }
+
+    void setFilterCutoff(const float cutoff) {
+        if(!juce::approximatelyEqual(cutoff, fc)) {
+            fc = cutoff;
+            for(size_t i=0; i<NUM_CHANNELS; i++) {
+                delays[i]->setFilterCutoff(fc);
+            }
+        }
     }
     
     void delay(const size_t channel, const float sample) const {
