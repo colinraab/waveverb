@@ -90,7 +90,7 @@ public:
         const float backwardOut = APFbackward.processSample(backwardLine.getBack());
 
         if(shouldReset) {
-            if(forwardOut < 0.000001f && backwardOut < 0.000001f) {
+            if(std::abs(forwardOut) < 0.000001f && std::abs(backwardOut) < 0.000001f) {
                 reset();
                 enabled = false;
                 return 0.f;
@@ -221,7 +221,7 @@ public:
             output.channels[i] = sample; // / NUM_CHANNELS
             if(counters[i] >= juce::roundToInt(triggerRate) * lengths[i]) {
                 if(input.channels[i] >= 0.01f) {
-                    float velocity = juce::jmap(input.channels[i], 0.f, 1.f, 0.f, 0.8f);
+                    float velocity = juce::jmap(input.channels[i], 0.f, 1.f, 0.f, 0.7f);
                     strings[i]->trigger(velocity);
                     counters[i] = 0;
                 }

@@ -116,12 +116,10 @@ PluginProcessor::PluginProcessor()
 
     magicState.setGuiValueTree(BinaryData::magic_xml, BinaryData::magic_xmlSize);
 
-    magicState.addTrigger("init", [&]{initialize();});
-
     presetList = magicState.createAndAddObject<PresetListBox>("presets");
     presetList->onSelectionChanged = [&](int number)
     {
-        loadPresetInternal (number);
+        newPreset = number;
     };
     magicState.addTrigger ("save-preset", [this]
     {
@@ -149,11 +147,14 @@ const juce::String PluginProcessor::getName() const
 
 bool PluginProcessor::acceptsMidi() const
 {
+    /*
    #if JucePlugin_WantsMidiInput
     return true;
    #else
     return false;
    #endif
+    */
+    return true;
 }
 
 bool PluginProcessor::producesMidi() const
@@ -270,7 +271,7 @@ bool PluginProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
 void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                               juce::MidiBuffer& midiMessages)
 {
-    juce::ignoreUnused (midiMessages);
+    //juce::ignoreUnused (midiMessages);
 
     juce::ScopedNoDenormals noDenormals;
     auto totalNumInputChannels  = getTotalNumInputChannels();
@@ -280,8 +281,8 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         buffer.clear (i, 0, buffer.getNumSamples());
 
     // can delete upon release
-    juce::AudioSourceChannelInfo sourceInfo(buffer);
-    transport.getNextAudioBlock(sourceInfo);
+    //juce::AudioSourceChannelInfo sourceInfo(buffer);
+    //transport.getNextAudioBlock(sourceInfo);
 
     waveVerb.setSize(*roomSize, *rt60);
     waveVerb.setDryWet(*dryWet);
@@ -291,16 +292,19 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     waveVerb.setWaveguideDecay(*waveguideB);
     waveVerb.setWaveguideTrigger(*waveguideC);
     waveVerb.setWaveguidePickup(*waveguideD);
-    waveVerb.processMidi(midiMessages);
+    if(!midiMessages.isEmpty()) {
+        waveVerb.processMidi(midiMessages);
+    }
 
     if(*dryWet != 0.f) {
         waveVerb.processBuffer(buffer);
     }
-}
 
-void PluginProcessor::initialize() {
-
-    waveVerb.reset();
+    if(newPreset != -1) {
+        waveVerb.reset();
+        loadPresetInternal(newPreset);
+        newPreset = -1;
+    }
 }
 
 void PluginProcessor::savePresetInternal()
@@ -326,19 +330,6 @@ void PluginProcessor::savePresetInternal()
 
 void PluginProcessor::loadPresetInternal(int index)
 {
-    /*
-    auto settingsFile = juce::File::getSpecialLocation(juce::File::userDocumentsDirectory).getChildFile ("Colin's Plugins").getChildFile("WaveguideReverb" + juce::String (".settings"));
-    if(!settingsFile.exists()) return;
-    auto xml = juce::parseXML(settingsFile);
-    auto string = xml->toString();
-    auto tree = juce::ValueTree::fromXml(*xml);
-    string = tree.toXmlString();
-    presetNode = tree.getChildWithName ("presets");
-    jassert(presetNode.isValid());
-    auto properties = presetNode.getNumProperties();
-    auto children = presetNode.getNumChildren();
-    string = presetNode.toXmlString();
-    */
     static juce::Identifier presetsType ("presets");
     presetNode = magicState.getSettings().getChildWithName (presetsType);
     auto preset = presetNode.getChild (index);

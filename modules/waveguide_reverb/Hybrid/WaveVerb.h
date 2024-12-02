@@ -91,8 +91,8 @@ public:
             }
             //mout.scale(blendOutCoeff);
             //input = matrix.combine(input, mout);
-            input = matrix.intermix(input, mout, blendInCoeff, blendOutCoeff);
             data dout = diffusion.process(input);
+            dout = matrix.intermix(dout, mout, blendInCoeff, blendOutCoeff);
             data fout = feedback.process(dout);
 
             //data mixed = matrix.intermix(fout, mout, blendInCoeff, blendOutCoeff);
@@ -104,6 +104,8 @@ public:
             outSampleR *= outputGain;
             float left = (outSampleL * outCoeff) + (sampleL * inCoeff);
             float right = (outSampleR * outCoeff) + (sampleR * inCoeff);
+            left = softClip(left);
+            right = softClip(right);
             jassert(std::abs(left) <= 1 || std::abs(right) <= 1);
             buffer.setSample(0, sample, left);
             buffer.setSample(1, sample, right);
@@ -140,11 +142,13 @@ public:
             float dbPerLoop = -60.f/loopPerRT60;
             reverbDecay = powf(10.f,dbPerLoop * 0.05f);
             feedback.setDecay(reverbDecay);
+            float cutoff = juce::jmap(rt, 0.f, 10.f, 1000.f, 10000.f);
+
         }
     }
 
     void setDryWet(float dw) {
-        dw = dw / 100.f; // 0-100 to 0-1
+        dw /= 100.f; // 0-100 to 0-1
         if (juce::approximatelyEqual(dw, dryWet)) return;
         dryWet = dw;
         // equal power coefficients for dry/wet mixing
@@ -186,11 +190,11 @@ public:
         }
         else if(chord == ChordType::Dominant) {
             chordDegrees.resize(4);
-            chordDegrees = {0, 4, 7, 11};
+            chordDegrees = {0, 4, 7, 10};
         }
         else if(chord == ChordType::Major_Seven) {
             chordDegrees.resize(4);
-            chordDegrees = {0, 4, 7, 10};
+            chordDegrees = {0, 4, 7, 11};
         }
         else if(chord == ChordType::Minor_Seven) {
             chordDegrees.resize(4);
@@ -226,7 +230,7 @@ public:
     }
 
     void reset() {
-
+        prepareToPlay(sampleRate);
     }
 
 private:
@@ -248,7 +252,7 @@ private:
     int rootNote = 48;
     int chordType = 0;
     int modelType = 0;
-    std::vector<int> chordDegrees = {0, 0, 0, 0};
+    std::vector<int> chordDegrees;
     std::vector<int> midiNotes;
     float waveguideDecay = 0.f;
     float waveguideRate = 0.f;
@@ -286,6 +290,10 @@ private:
 
     static float midiToFreq(const int midi) {
         return std::powf(2, (static_cast<float>(midi) - 69.f) / 12.f) * 440.f;
+    }
+
+    static float softClip(const float input) {
+        return (2.f / juce::MathConstants<float>::pi) * atanf(input);
     }
 };
 

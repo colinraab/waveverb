@@ -65,18 +65,33 @@ public:
     }
     
     data Hadamard(data r) {
-        data o;
         float a = 0;
         float b = 0;
+        //data* point = &r;
+        recursiveUnscaled(&r, NUM_CHANNELS);
+        data o = r;
         float factor = std::sqrt(1.f/NUM_CHANNELS);
-        int hsize = NUM_CHANNELS/2;
-        for(size_t i=0; i<hsize; i++) {
-            a = r.channels[i];
-            b = r.channels[i+hsize];
-            o.channels[i] = (a+b) * factor;
-            o.channels[i+hsize] = (a-b) * factor;
+        for(size_t i=0; i<NUM_CHANNELS; i++) {
+            o.channels[i] *= factor;
         }
         return o;
+    }
+
+    void recursiveUnscaled(data* r, int size) {
+        if (size <= 1) return;
+        int hSize = size/2;
+
+        // Two (unscaled) Hadamards of half the size
+        recursiveUnscaled(r, hSize);
+        recursiveUnscaled(r + hSize, hSize);
+
+        // Combine the two halves using sum/difference
+        for (int i = 0; i < hSize; ++i) {
+            double a = r->channels[i];
+            double b = r->channels[i + hSize];
+            r->channels[i] = (a + b);
+            r->channels[i + hSize] = (a - b);
+        }
     }
 
     data intermix(data f, data m, float fCoeff, float mCoeff) {

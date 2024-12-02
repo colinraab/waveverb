@@ -55,6 +55,9 @@ add_subdirectory (modules/melatonin_inspector)
 
 # See `docs/CMake API.md` in the JUCE repo for all config options
 juce_add_plugin("${PROJECT_NAME}"
+
+    JUCE_NEEDS_MIDI_INPUT=1
+
     # Icons for the standalone app
     ICON_BIG "${CMAKE_CURRENT_SOURCE_DIR}/packaging/icon.png"
     ICON_SMALL "${CMAKE_CURRENT_SOURCE_DIR}/packaging/icon.png"
@@ -115,6 +118,7 @@ target_compile_definitions(SharedCode
     JUCE_USE_CURL=0     # If you set this to 1, add `NEEDS_CURL TRUE` to the `juce_add_plugin` call
     JUCE_VST3_CAN_REPLACE_VST2=0
 
+
     # Uncomment if you are paying for a an Indie/Pro license or releasing under GPLv3
     # JUCE_DISPLAY_SPLASH_SCREEN=0
 
@@ -125,7 +129,7 @@ target_compile_definitions(SharedCode
     # JucePlugin_Name is for some reason doesn't use the nicer PRODUCT_NAME
     PRODUCT_NAME_WITHOUT_VERSION="WaveVerb"
 
-    FOLEYS_SHOW_GUI_EDITOR_PALLETTE=1
+    FOLEYS_SHOW_GUI_EDITOR_PALLETTE=0
     FOLEYS_SAVE_EDITED_GUI_IN_PLUGIN_STATE=1
     FOLEYS_USE_BINARY_DATA=1
     FOLEYS_ENABLE_BINARY_DATA=1

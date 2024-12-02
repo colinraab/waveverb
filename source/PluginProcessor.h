@@ -59,10 +59,10 @@ private:
 
     juce::AudioProcessorValueTreeState treeState {*this, nullptr};
     juce::ValueTree presetNode;
-    PresetListBox* presetList   = nullptr;
+    PresetListBox* presetList = nullptr;
 
     Colin::WaveVerb waveVerb;
-    void initialize();
+    int newPreset = -1;
 
 
     // audio player for testing, can be deleted upon release

@@ -5,6 +5,15 @@
         <link rel="stylesheet"
             href="https://cdn.jsdelivr.net/npm/bulma@0.9.2/css/bulma.min.css">
         <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+            div.imageContainer {
+                display:inline-block;
+            }
+
+            p {
+                text-align:center;
+            }
+        </style>
     </head>
 <body>
     <section class="hero is-fullheight is-dark">
@@ -13,15 +22,131 @@
             <div class="columns is-vcentered is-centered">
                 <div class="column is-6">
                     <div class="block">
-                        <h1 class="title is-2">MUMT 618 Final Project, Fall 2024</h1>
+                        <h1 class="title is-2">WaveVerb: Hybrid Waveguide Network Reverb</h1>
+                        <h2 class="title is-4">MUMT 618 Final Project</h2>
+                        <h3 class="subtitle">Colin Raab. McGill University, Fall 2024</h3>
                     </div>
                     <div class="block">
-                        <h2 class="subtitle">Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book.<br>
+                        <h1 class="title is-3">Introduction<br></h1>
+                        <h2 class="subtitle">Artificial reverberation, often shortened to reverb, is a commonly used tool by musicians, producers, and mixing engineers. Many auditory experiences are shaped by the acoustic environment in which they exist. When music could be captured in an acoustically dead space and then relayed over headphones, that sense of space is lost. Thus, engineers figured out how to put the space back into the sound. Without any physical constraints, reverb was transformed into a creative tool and applying it became an art of its own. <br>
+                        </h2>
+                    </div>
+                    <div class="block">
+                        <h1 class="title is-3">Previous Research<br></h1>
+                        <h2 class="subtitle">The feedback delay network (FDN) method for artificial reverberation was first proposed by Jot [1]. This structure uses a vector of delay lines (channels) that feedback into each other. Energy is distributed across these channels via the mixing matrix, preventing perceptually distinct delayed copies of the source signal. Thus, the many reflections that occur within a space can be emulated by a small number of delays. The FDN structure is more computationally efficient than convolutional or ray-tracing modelling of real-world spaces. To accurately mimic real spaces, however, a FDN model requires precise tuning of its parameters. </h2>
+                        <img src=assets/images/FDN_Diagram.png alt="Feedback Delay Network diagram">
+                        <h3 class="subtitle is-6"><i>Diagram of the Feedback Delay Network structure</i></h3>
+                        <h2 class="subtitle">Another strength of the FDN is its flexibility. By altering the delay line lengths, scalar coefficients, and filters, a variety of room sounds can be emulated. Within this lies another weakness of the FDN: these parameters do not directly correlate to the physical properties of a real space.
+                        <br><br>Physical modelling of acoustic systems allows for synthetic results different to that of traditional synthesis forms (wavetable, additive). Given the potential complexity of such algorithms, computational optimizations were required for early implementations. The digital waveguide technique pioneered by Smith [2]  allowed for synthesis of strings and wind instruments by solving for the output of travelling waves. These waves can be simulated by a simple delay line, where the length of the line corresponds to the pitch of the note.
+                        </h2>
+                    </div>
+                    <div class="block">
+                        <h1 class="title is-3">Motivation<br></h1>
+                        <h2 class="subtitle">Inspiration for this project came from my experience as a producer and mixing engineer. Artificial reverberation is a staple audio effect in all my projects. Over the last thirty years of FDN implementations, developers and designers have created both complex and simple reverbs for any musical situation. Understanding the potential (and the limits) of reverb would help me apply these tools more effectively.
+                        <br><br>Given the abundance of existing reverb algorithms, I sought to incorporate some of the concepts we learned this semester into a novel audio effect. At the core of the FDN structure is the vector of delay lines. Delay lines are a key data structure found in digital waveguide models, pitch shifters, flangers, and many more. One device I like is Ableton’s Resonators tool. With five tunable resonators, incoming signals are fed into the feedbacking delay lines to blend in the harmonics of a chord.
+                        <br><br>In addition to simulating acoustic instruments, the principles of physical modelling and digital waveguides can produce unique and organic sounds. I personally use the tools developed by
+                            <a href="https://www.applied-acoustics.com"><u>Applied Acoustic Systems</u></a>
+                            and
+                            <a href="https://rhizomatic.fr/index.php/plasmonic/"><u>Plasmonic by Rhizomatic</u></a>
+                            in my musical endeavors.
+                        <br><br>Originally, I envisioned a hybrid reverb-resonator that would blend FDN delay lines with digital waveguide delay lines to create a tonal and dispersed sound. At this point in the process, I did not know what I was doing or whether this was feasible.
+                        </h2>
+                    </div>
+                    <div class="block">
+                        <h1 class="title is-3">Development<br></h1>
+                        <h2 class="subtitle">The first step was to implement a FDN reverb in C++ using the JUCE framework. While JUCE already has a basic reverb object, I wanted to create my own to give flexibility over the structure and to cement my knowledge on the subject. The work of Geraint Luff and Will Pirkle [4] were valuable resources.
+                            <br><br> At the core of the reverb is a sixteen-channel FDN with a
+                                <a href="https://en.wikipedia.org/wiki/Householder_transformation/"><u>Householder</u></a>
+                                mixing matrix. Each channel has a different length, calculated from a room size parameter. With a room size of 150ms, the delay line lengths range from 6,600-13,000 samples, and with a room size of 300ms the delay line lengths range from 13,000-26,000 samples. The feedback amount (or decay coefficient) is calculated from an RT60 parameter.
+                            <br><br>The FDN structure is effective at mimicking late reflections but struggles to imitate the early reflections that occur right after the source signal enters the network. One common solution is to use a short impulse response to diffuse the signal first. By using an impulse response of 2048 samples (46 milliseconds at 44.1kHz sampling rate), the lesser computational burden is balanced with the increase in sound quality. The Hybrid Reverb device in Ableton Live offers this functionality, providing a selection of impulse responses and FDN structures that can be intermixed.
+                            <br><br>If convolution is to be avoided, allpass filters can be used. Schroeder determined that large echo density and flat frequency response were key to believable artificial reverberation. A Schroeder allpass filter is an IIR filter with a feedback loop and feedforward path. The feedback loop creates a comb filter, and the feedforward path allows for the flat frequency response. By nesting allpass filters, more complicated reverberation sounds can be produced.
+                            <br><br>An alternative approach is to design a network of shorter, non-feedbacking delay lines. Just like an allpass filter, a delay line has a flat frequency response. To create diffusion rather than perceptible echoes, shorter delay line lengths are used, varying from 44-13,000 samples (1-300 milliseconds). The maximum delay line length is determined by the room size (while for the FDN, the room size determines the minimum delay line length). A mixing matrix can provide additional diffusion by distributing input signals evenly across the output channels. I’ve opted for a
+                            <a href="https://en.wikipedia.org/wiki/Hadamard_matrix"><u>Hadamard</u></a>
+                            matrix instead of the Householder matrix used for the FDN. To increase the amount of diffusion, this process can be performed multiple times in series. The first diffusion step we’ll set to shorter delay line lengths, and each successive step will have increasing lengths.
+                            <br><br>The user can control the room size and the RT60 with the “Size” X-Y grid.
+                            <br><br>The process of upscaling one or two input channels up to the number of delay lines in the diffusion and FDN structures (16 in this case) can be as simple as duplicating the input signal. Since each delay line is of a different length, each output channel will provide a distinct result. Likewise, when downmixing from 16 channels to two channels, we could just sum half the input channels into L and half into R. A more inspired approach involves calculating a set of coefficients from sine and cosine function. The phase increases from 0 to pi: even channels are assigned the output from sin(phase) and odd channels the output from cos(phase). The first to channels are set to 1 and 0 respectively. These coefficients are used for upmixing and downmixing.
+                            <br><br>With the reverb completed, work on the waveguide network began. First, I implemented a waveguide plucked string. The string contains two delay lines, one for forward propagation and one for backward propagation. My circular delay line object from the reverb was used. For each output sample from the string, the outputs from each line are filtered through one-pole allpass filters. Then, the output from the backward line is inverted and fed back into the forward line, while the output from the forward line is inverted, multiplied by the decay coefficient, lowpass filtered, and fed into the backward line. The pickup position determines where in each line the new samples are extracted. These samples are summed and fed through a filterbank of 16 biquads that estimate the modes of a violin body, and that produces the final result.
+                            <br><br>The violin body filters are calculated using
+                                this script
+                                by Gary Scavone.
+                            <br><br>The strings are plucked with a velocity that adds a linear ramp to both the forward and backward delay lines. The ramp goes from zero to the velocity (or -1 times the velocity) and has a duration determined by the trigger position.
+                            <br><br>To match the 16 delay lines in the reverb, 16 waveguide strings are collected into a new object. After the input audio is upmixed to 16 channels, each channel that exceeds a threshold can trigger its corresponding string with a velocity of the amplitude. The string is triggered after a certain number of cycles have passed. The number of cycles is set by the “rate” parameter and varies slightly such that the strings are out of sync with each other.
+                            <br><br>The user can control the decay coefficient and rate factor with the “Density” X-Y grid, and the pickup position and trigger position with the “Tone” X-Y grid.
+                            <br><br>Two drop down menus allow the user to select a root note and chord type for the waveguides. The “single note” option tunes all waveguides to the selected root note. The other chords (Major, Minor, Dominant, Major 7, Minor 7) tune the strings to the notes in that chord. For example, with the root note of C, and the Major chord selected, four of the strings are tuned to C3, four are tuned to E3, four are tuned to G3, and four are tuned to C4.
+                            <br><br>The "Blend" knob mixes between the reverb and waveguide mixes, and the "Mix" knob controls the level of the wet (output) signal compared to the dry (input) signal.
+                            <br></h2>
+                            <img src=assets/images/Hybrid_Reverb_Diagram.png alt="Hybrid Waveguide Reverb diagram">
+                        <h3 class="subtitle is-6"><i>Diagram of the Hybrid Waveguide Reverb structure</i></h3>
+                    </div>
+                    <div class="block">
+                        <h1 class="title is-3">Interface<br></h1>
+                        <h2 class="subtitle">Note: the “play” and “test” buttons trigger an audio loop for testing and debugging purposes, it will be removed in the final product.</h2>
+                        <div class="imageContainer">
+                        <img src=assets/images/Prototype_1.png alt="Prototype interface image 1">
+                        </div>
+                        <div class="imageContainer">
+                        <img src=assets/images/Prototype_2.png alt="Prototype interface image 2">
+                        </div>
+                        <h3 class="subtitle is-6"><i>Prototype interface</i></h3>
+                        <img src=assets/images/Final_1.png alt="Final interface image 1">
+                        <img src=assets/images/Final_2.png alt="Final interface image 2">
+                        <h3 class="subtitle is-6"><i>"Final" interface (subject to change)</i></h3>
+                    </div>
+                    <div class="block">
+                        <h1 class="title is-3">Demo Video<br></h1>
+                        <video width="640" height="360" controls>
+                            <source src="assets/WaveVerb_Demo.mp4" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                    </div>
+                    <div class="block">
+                        <h1 class="title is-3">Issues Faced<br></h1>
+                        <h2 class="subtitle">I’m always learning new things in JUCE and C++. This project, I opted for some new coding practices and modules to (theoretically) improve the result. As a result, my attention was often diverted away from the DSP.
+                            <br><br>I used the
+                            <a href="https://github.com/sudara/pamplejuce"><u>Pamplejuce</u></a>
+                            template developed by Sudara as a starting point for the project. This GitHub repo is designed to streamline some of the less enjoyable aspects of the JUCE building process. JUCE provides a compiling tool called Projucer for file and build management, but regular CMake offers extra functionality. Thus, the Pamplejuce template functions well with the CLion IDE by JetBrains which integrates well will CMake for C++ application development. I have also never used CLion before, but I already prefer it to Xcode most of the time.
+                            <br><br>Designing and implementing GUIs in JUCE is generally the most time-consuming stage of the development process. While I have become more efficient over the past few years, it is still a frustrating experience. The
+                            <a href="https://foleysfinest.com/foleys_gui_magic/"><u>FoleysGuiMagic</u></a>
+                            module developed by Daniel Walz adds a GUI for making your own GUI. Building your GUI visually is more satisfying than placing elements in code and hoping they line up well. Setting up the module and adding complex functionality, however, was less straightforward than I hoped (especially when adding elements I already knew how to implement without the module). Luckily, Daniel was regularly available on Discord and able to help when I ran into issues.
+                        </h2>
+                    </div>
+                    <div class="block">
+                        <h1 class="title is-3">Conclusions and Future Work<br></h1>
+                        <h2 class="subtitle"> I learned a lot during this project. I have yet to learn not to overestimate my abilities.
+                            <br><br>I should have spent more time and effort brainstorming how the waveguide and reverb delay lines would interact. Initial prototyping in Matlab might have made more sense than jumping right into C++. The article "Generalized Digital Waveguide Networks" [5] gives insight into acoustic parallels of a network of digital waveguides. One example given is piano strings attached to a common bridge which allows for coupling. Another application could be sympathetic vibrations, like those that exist in a guitar or piano.
+                            <br><br>The string model sounds noisy. Not sure why.
+                            <br><br>I would like to incorporate more digital waveguide models, especially models that have a sustained sound. A bowed string would be my priority, then wind instrument models. In addition to more control over the waveguide model, I would implement more body filters. Currently, the violin body filter is hardcoded, but with some other filters, the user could control which filter is applied.
+                            <br><br>Another missing key feature is MIDI input to control the pitches of the waveguides. This way, the musician can tune the waveguides to match the harmonic content of the input audio more easily than automating the root note and chord parameters.
+                            <br><br>The reverb sound could be improved to have different structures and more options. One main oversight was the lack of lowpass filtering during the feedback process.
+                            <br><br>Some nice-to-have features include detection filtering for the waveguide triggers and octave selection for the root note.
+                            <br><br>This device needs a variety of improvements before it provides meaningful value in a music creation process. Ideally, I would feel proud to release this either as open-source code or for commercial release, but I do not feel that way in its current state. It will require a combination of signal processing changes, a GUI refresh, and thorough validation testing.
+                        </h2>
+                    </div>
+                    <div class="block">
+                        <h1 class="title is-3">Contributions<br></h1>
+                        <h2 class="subtitle"> The
+                            <a href="https://www.geraintluff.co.uk/writing/2021/lets-write-a-reverb/"><u>Let’s Write A Reverb blogpost</u></a>
+                            and accompanying
+                            <a href="https://www.youtube.com/watch?v=6ZK2Goiyotk/"><u>video presentation</u></a>
+                            by Geraint Luff were incredibly useful.
+                            <br><br>JUCE provides an example of a
+                            <a href="https://docs.juce.com/master/tutorial_dsp_delay_line.html"><u>waveguide plucked string</u></a>
+                            that I used as a reference.
+                            <br><br>
+                            [1] Jot, Jean-Marc, et al. “Analysis and Synthesis of Room Reverberation Based on a Statistical Time-Frequency Model.” In Proceedings of the 103rd Audio Engineering Society Convention, 1997.
+                            <br><br>
+                            [2] Smith, Julius O. “Physical Modeling Using Digital Waveguides.” Computer Music Journal, vol. 16, no. 4, 1992, pp. 74–91. https://doi.org/10.2307/3680470.
+                            <br><br>
+                            [3] Gardner, William G. “Reverberation Algorithms” from Applications of DSP to Audio and Acoustics. 2002.
+                            <br><br>
+                            [4] Pirkle, Will C. Designing Audio Effect Plugins in C++ : for AAX, AU, and VST3 with DSP theory. Second Edition. New York, NY. 2019.
+                            <br><br>
+                            [5] Rocchesso, David and Smith, Julius O. “Generalized Digital Waveguide Networks” in IEEE Transactions on Speech and Audio Processing, vol. 11, no. 3. 2003.
                         </h2>
                     </div>
                     <div class="block buttons">
-                        <a href="https://facebook.com/"><button class="button is-white is-outlined">Visit my Facebook</button></a> &nbsp;
-                        <a href="https://twitter.com/"><button class="button is-white is-outlined">Visit my Twitter</button></a>
+                        <a href="https://github.com/colinraab/waveverb"><button class="button is-white is-outlined">GitHub</button></a> &nbsp;
+                        <a href="https://colinraab.com"><button class="button is-white is-outlined">Personal Website</button></a>
                     </div>
                 </div>
             </div>

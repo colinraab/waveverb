@@ -188,7 +188,7 @@ protected:
     std::vector<Single_Delay*> delays;
     int delaySamples[NUM_CHANNELS] = {0};
     LFO lfos[NUM_CHANNELS];
-    float depth = 10.f;
+    float depth = 0.f;
     
 public:
     Multi_Delay() = default;
@@ -210,6 +210,7 @@ public:
         }
         time = t;
         decay = d;
+        setLFODepth(10.f);
     }
     
     void setTime(const float t) {
@@ -352,8 +353,10 @@ public:
         //steps.resize(NUM_STEPS);
         for(size_t i=0; i<NUM_STEPS; i++) {
             steps.push_back(new DiffusionStep());
-            steps[i]->delayRange = juce::roundToInt(diffusionMS);
-            steps[i]->configure(fs);
+        }
+        for(size_t i=NUM_STEPS; i>0; i--) {
+            steps[i-1]->delayRange = juce::roundToInt(diffusionMS);
+            steps[i-1]->configure(fs);
             diffusionMS *= 0.5;
         }
     }
