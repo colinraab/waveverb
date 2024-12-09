@@ -55,7 +55,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
 
     auto waveguide = std::make_unique<juce::AudioProcessorParameterGroup>("Waveguide", TRANS ("Waveguide"), "|");
         waveguide->addChild (std::make_unique<juce::AudioParameterChoice>(juce::ParameterID (IDs::modelType, 1), "Model Type", juce::StringArray("None", "Plucked String"), 0),
-        std::make_unique<juce::AudioParameterChoice>(juce::ParameterID (IDs::rootNote, 1), "Root Note", juce::StringArray("C", "C#", "D", "D#", "E", "F", "G", "G#", "A", "A#", "B"), 0),
+        std::make_unique<juce::AudioParameterChoice>(juce::ParameterID (IDs::rootNote, 1), "Root Note", juce::StringArray("C", "C#/Db", "D", "D#/Eb", "E", "F", "F#/Gb", "G", "G#/Ab", "A", "A#/Bb", "B"), 0),
         std::make_unique<juce::AudioParameterChoice>(juce::ParameterID (IDs::chordType, 1), "Chord Type", juce::StringArray("Midi Input", "Single Note", "Major", "Minor", "Dominant", "Major 7", "Minor 7"), 0),
         std::make_unique<juce::AudioParameterFloat>(juce::ParameterID(IDs::waveguideA, 1), "Waveguide A", juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f), 0.5f),
         std::make_unique<juce::AudioParameterFloat>(juce::ParameterID(IDs::waveguideB, 1), "Waveguide B", juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f), 0.5f),

@@ -5,7 +5,7 @@
 #include <cstdlib>
 #include "Mix_Matrix.h"
 #include "../Utility/LFO.h"
-#include "waveguide_reverb/Utility/Biquad.h"
+#include "juce_dsp/juce_dsp.h"
 
 /*
   ==============================================================================
@@ -111,7 +111,9 @@ protected:
     float decay = 1.f; /// 1 = no decay, 0 = instant decay
     double sampleRate = 44100;
     float fractional = 0.f;
-    Biquad_Filter filter;
+    //Biquad_Filter filter;
+    juce::dsp::StateVariableTPTFilter<float> filter;
+    bool filterIsEnabled = false;
 
 public:
     Single_Delay() = default;
@@ -126,13 +128,19 @@ public:
     }
     */
     
-    void prepareToPlay(const double fs, const float time, const float decay) {
+    void prepareToPlay(const double fs, const float time, const float dec, const bool enableFilter) {
         sampleRate = fs;
         length = juce::roundToInt(static_cast<float>(fs) * time);
         buffer.resize(length);
         buffer.reset();
-        this->decay = decay;
-        filter.setBiquad(Biquad_Type::LPF, fs / 2.f, 0.707, 0.f);
+        decay = dec;
+        juce::dsp::ProcessSpec spec(sampleRate, 512, 1);
+        filter.reset();
+        filter.prepare(spec);
+        filter.setType(juce::dsp::StateVariableTPTFilterType::lowpass);
+        filter.setCutoffFrequency(fs / 2.1f);
+        filter.setResonance(0.707);
+        filterIsEnabled = enableFilter;
     }
     
     void reset() {
@@ -147,7 +155,10 @@ public:
         buffer.add(sample * decay);
     }
     
-    float get() const {
+    float get() {
+        if(filterIsEnabled) {
+            return filter.processSample(0, buffer.getBack());
+        }
         return buffer.getBack();
     }
 
@@ -182,7 +193,7 @@ public:
     }
 
     void setFilterCutoff(float cutoff) {
-        filter.setFc(cutoff);
+        filter.setCutoffFrequency(cutoff);
     }
 };
 
@@ -210,7 +221,7 @@ public:
             const float r = i * 1.f / NUM_CHANNELS;
             //delaySamples[i] = std::pow(2,r) * delaySec;
             const float dt = std::powf(2.f,r) * delaySec;
-            delays[i]->prepareToPlay(sampleRate, dt, d);
+            delays[i]->prepareToPlay(sampleRate, dt, d, true);
             lfos[i].prepareToPlay(sampleRate);
             lfos[i].setType(LFO_type::Sine);
             const float rate = std::powf(2.f,r) / 2.f;
@@ -311,7 +322,7 @@ public:
             //delaySamples[i] = randomInRange(low, high);
             float d = randomInRange(low, high);
             if(d<0.001f) d = 0.001f;
-            delays[i]->prepareToPlay(fs, d, 1.f);
+            delays[i]->prepareToPlay(fs, d, 1.f, false);
             flipPolarity[i] = rand() % 2;
         }
     }

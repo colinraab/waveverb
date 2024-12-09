@@ -62,7 +62,7 @@ public:
         feedback.prepareToPlay(fs, 150.f, 0.85f);
         strings.prepareToPlay(fs);
         updateFrequencies();
-        setSize(roomSizeMS, rt60MS);
+        setSize(roomSizeMS, rt60MS / 1000.f);
         matrix.cheapEnergyCrossfade(dryWet, outCoeff, inCoeff);
     }
 
@@ -85,14 +85,16 @@ public:
             }
 
             data input = matrix.stereoToMulti(sampleL, sampleR);
-            data mout = input;
+            data mout;
             if(modelType == ModelType::String) {
                 mout = strings.process(input);
             }
             //mout.scale(blendOutCoeff);
             //input = matrix.combine(input, mout);
             data dout = diffusion.process(input);
-            dout = matrix.intermix(dout, mout, blendInCoeff, blendOutCoeff);
+            if(modelType != ModelType::None) {
+                dout = matrix.intermix(dout, mout, blendInCoeff, blendOutCoeff);
+            }
             data fout = feedback.process(dout);
 
             //data mixed = matrix.intermix(fout, mout, blendInCoeff, blendOutCoeff);
@@ -142,7 +144,7 @@ public:
             float dbPerLoop = -60.f/loopPerRT60;
             reverbDecay = powf(10.f,dbPerLoop * 0.05f);
             feedback.setDecay(reverbDecay);
-            float cutoff = juce::jmap(rt, 0.f, 10.f, 1000.f, 10000.f);
+            float cutoff = juce::jmap(rt, 200.f, 10000.f, 1000.f, 8000.f);
             feedback.setFilterCutoff(cutoff);
         }
     }
