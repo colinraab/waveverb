@@ -29,7 +29,7 @@
                     <div class="block">
                         <h1 class="title is-3">Previous Research<br></h1>
                         <h2 class="subtitle">The feedback delay network (FDN) method for artificial reverberation was first proposed by Jot [1]. This structure uses a vector of delay lines (channels) that feedback into each other. Energy is distributed across these channels via the mixing matrix, preventing perceptually distinct delayed copies of the source signal. Thus, the many reflections that occur within a space can be emulated by a small number of delays. The FDN structure is more computationally efficient than convolutional or ray-tracing modelling of real-world spaces. To accurately mimic real spaces, however, a FDN model requires precise tuning of its parameters. </h2>
-                        <img src=../assets/images/FDN_Diagram.png alt="Feedback Delay Network diagram">
+                        <img src=https://github.com/colinraab/waveverb/blob/main/assets/images/FDN_Diagram.png alt="Feedback Delay Network diagram">
                         <h3 class="subtitle is-6"><i>Diagram of the Feedback Delay Network structure</i></h3>
                         <h2 class="subtitle">Another strength of the FDN is its flexibility. By altering the delay line lengths, scalar coefficients, and filters, a variety of room sounds can be emulated. Within this lies another weakness of the FDN: these parameters do not directly correlate to the physical properties of a real space.
                         <br><br>Physical modelling of acoustic systems allows for synthetic results different to that of traditional synthesis forms (wavetable, additive). Given the potential complexity of such algorithms, computational optimizations were required for early implementations. The digital waveguide technique pioneered by Smith [2]  allowed for synthesis of strings and wind instruments by solving for the output of travelling waves. These waves can be simulated by a simple delay line, where the length of the line corresponds to the pitch of the note.
@@ -47,7 +47,7 @@
                             in my musical endeavors.
                         <br><br>Originally, I envisioned a hybrid reverb-resonator that would blend FDN delay lines with digital waveguide delay lines to create a tonal and dispersed sound. At this point in the process, I did not know what I was doing or whether this was feasible.
                         </h2>
-                        <img src=../assets/images/Target_Structure_Diagram.png alt="Target structure">
+                        <img src=https://github.com/colinraab/waveverb/blob/main/assets/images/Target_Structure_Diagram.png alt="Target structure">
                         <h3 class="subtitle is-6"><i>Envisioned structure for the Hybrid Waveguide Reverb Network</i></h3>
                     </div>
                     <div class="block">
@@ -58,7 +58,7 @@
                                 mixing matrix. Each channel has a different length, calculated from a room size parameter. With a room size of 150ms, the delay line lengths range from 6,600-13,000 samples, and with a room size of 300ms the delay line lengths range from 13,000-26,000 samples. The feedback amount (or decay coefficient) is calculated from an RT60 parameter.
                             <br><br>The FDN structure is effective at mimicking late reflections but struggles to imitate the early reflections that occur right after the source signal enters the network. One common solution is to use a short impulse response to diffuse the signal first. By using an impulse response of 2048 samples (46 milliseconds at 44.1kHz sampling rate), the lesser computational burden is balanced with the increase in sound quality. The Hybrid Reverb device in Ableton Live offers this functionality, providing a selection of impulse responses and FDN structures that can be intermixed.
                         </h2>
-                        <img src=../assets/images/Ableton_HybridReverb.png alt="Ableton's Hybrid Reverb interface">
+                        <img src=https://github.com/colinraab/waveverb/blob/main/assets/images/Ableton_HybridReverb.png alt="Ableton's Hybrid Reverb interface">
                             <h3 class="subtitle is-6"><i>Ableton's Hybrid Reverb interface</i></h3>
                         <h2 class="subtitle">
                             If convolution is to be avoided, allpass filters can be used. Schroeder determined that large echo density and flat frequency response were key to believable artificial reverberation. A Schroeder allpass filter is an IIR filter with a feedback loop and feedforward path. The feedback loop creates a comb filter, and the feedforward path allows for the flat frequency response. By nesting allpass filters, more complicated reverberation sounds can be produced.
@@ -77,23 +77,23 @@
                             <br><br>Two drop down menus allow the user to select a root note and chord type for the waveguides. The “single note” option tunes all waveguides to the selected root note. The other chords (Major, Minor, Dominant, Major 7, Minor 7) tune the strings to the notes in that chord. For example, with the root note of C, and the Major chord selected, four of the strings are tuned to C3, four are tuned to E3, four are tuned to G3, and four are tuned to C4.
                             <br><br>The "Blend" knob mixes between the reverb and waveguide mixes, and the "Mix" knob controls the level of the wet (output) signal compared to the dry (input) signal.
                             <br></h2>
-                            <img src=../assets/images/Hybrid_Reverb_Diagram.png alt="Hybrid Waveguide Reverb diagram">
+                            <img src=https://github.com/colinraab/waveverb/blob/main/assets/images/Hybrid_Reverb_Diagram.png alt="Hybrid Waveguide Reverb diagram">
                         <h3 class="subtitle is-6"><i>Diagram of the current Hybrid Waveguide Reverb Network structure</i></h3>
                     </div>
                     <div class="block">
                         <h1 class="title is-3">Interface<br></h1>
                         <h2 class="subtitle">Note: the “play” and “test” buttons trigger an audio loop for testing and debugging purposes, it will be removed in the final product.</h2>
-                        <img src=../assets/images/Prototype_1.png alt="Prototype interface image 1">
-                        <img src=../assets/images/Prototype_2.png alt="Prototype interface image 2">
+                        <img src=https://github.com/colinraab/waveverb/blob/main/assets/images/Prototype_1.png alt="Prototype interface image 1">
+                        <img src=https://github.com/colinraab/waveverb/blob/main/assets/images/Prototype_2.png alt="Prototype interface image 2">
                         <h3 class="subtitle is-6"><i>Prototype interface</i></h3>
-                        <img src=../assets/images/Final_1.png alt="Final interface image 1">
-                        <img src=../assets/images/Final_2.png alt="Final interface image 2">
+                        <img src=https://github.com/colinraab/waveverb/blob/main/assets/images/Final_1.png alt="Final interface image 1">
+                        <img src=https://github.com/colinraab/waveverb/blob/main/assets/images/Final_2.png alt="Final interface image 2">
                         <h3 class="subtitle is-6"><i>"Final" interface (subject to change)</i></h3>
                     </div>
                     <div class="block">
                         <h1 class="title is-3">Demo Video<br></h1>
                         <video width="720" height="450" controls>
-                            <source src="../assets/Demo_Video.mp4" type="video/mp4">
+                            <source src="https://github.com/colinraab/waveverb/blob/main/assets/Demo_Video.mp4" type="video/mp4">
                             Your browser does not support the video tag.
                         </video>
                     </div>
